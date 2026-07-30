@@ -1,0 +1,19 @@
+{
+    "variants": {
+        "facing=north": {
+            "model": "imba:block/glowberries"
+        },
+        "facing=south": {
+            "model": "imba:block/glowberries",
+            "y": 180
+        },
+        "facing=east": {
+            "model": "imba:block/glowberries",
+            "y": 90
+        },
+        "facing=west": {
+            "model": "imba:block/glowberries",
+            "y": 270
+        }
+    }
+}

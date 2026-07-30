@@ -1,0 +1,19 @@
+{
+    "variants": {
+        "facing=north": {
+            "model": "imba:block/grass"
+        },
+        "facing=south": {
+            "model": "imba:block/grass",
+            "y": 180
+        },
+        "facing=east": {
+            "model": "imba:block/grass",
+            "y": 90
+        },
+        "facing=west": {
+            "model": "imba:block/grass",
+            "y": 270
+        }
+    }
+}

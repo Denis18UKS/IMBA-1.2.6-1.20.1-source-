@@ -1,0 +1,8 @@
+{
+	"parent": "minecraft:block/ladder",
+	"ambientocclusion": false,
+	"textures": {
+		"texture": "imba:block/ladder",
+		"particle": "imba:block/ladder"
+	}
+}

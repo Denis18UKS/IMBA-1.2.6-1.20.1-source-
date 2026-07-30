@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "imba:block/start_block" },
+    "facing=east":  { "model": "imba:block/start_block", "y": 90 },
+    "facing=south": { "model": "imba:block/start_block", "y": 180 },
+    "facing=west":  { "model": "imba:block/start_block", "y": 270 }
+  }
+}

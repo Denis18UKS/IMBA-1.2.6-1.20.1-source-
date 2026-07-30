@@ -1,0 +1,19 @@
+{
+    "variants": {
+        "facing=north": {
+            "model": "imba:block/stonrcutter"
+        },
+        "facing=south": {
+            "model": "imba:block/stonrcutter",
+            "y": 180
+        },
+        "facing=east": {
+            "model": "imba:block/stonrcutter",
+            "y": 90
+        },
+        "facing=west": {
+            "model": "imba:block/stonrcutter",
+            "y": 270
+        }
+    }
+}

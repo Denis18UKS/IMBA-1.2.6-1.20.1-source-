@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "imba",
+	"version": "${version}",
+	"name": "IMBA",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"fable.hideseek.imba.ImbaMod"
+		],
+		"client": [
+			"fable.hideseek.imba.ImbaClient"
+		]
+	},
+	"mixins": [
+		"imba.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "1.20.1",
+		"fabric-api": "*"
+	}
+}

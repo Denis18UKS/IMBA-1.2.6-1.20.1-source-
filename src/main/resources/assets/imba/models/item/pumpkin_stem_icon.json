@@ -1,0 +1,13 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "minecraft:block/attached_pumpkin_stem"
+  },
+  "display": {
+    "gui": {
+      "rotation": [0, 0, 0],
+      "translation": [0, 0, 0],
+      "scale": [1.55, 1.55, 1.55]
+    }
+  }
+}

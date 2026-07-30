@@ -1,0 +1,18 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "texture": "minecraft:block/ladder",
+    "particle": "minecraft:block/ladder"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 15],
+      "to": [16, 16, 16],
+      "shade": false,
+      "faces": {
+        "north": { "uv": [0, 0, 16, 16], "texture": "#texture" },
+        "south": { "uv": [0, 0, 16, 16], "texture": "#texture" }
+      }
+    }
+  ]
+}

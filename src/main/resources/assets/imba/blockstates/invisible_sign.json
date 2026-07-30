@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "imba:block/invisible_sign" },
+    "facing=east":  { "model": "imba:block/invisible_sign", "y": 90 },
+    "facing=south": { "model": "imba:block/invisible_sign", "y": 180 },
+    "facing=west":  { "model": "imba:block/invisible_sign", "y": 270 }
+  }
+}

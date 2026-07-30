@@ -1,0 +1,19 @@
+{
+    "variants": {
+        "facing=north": {
+            "model": "imba:block/ladder"
+        },
+        "facing=south": {
+            "model": "imba:block/ladder",
+            "y": 180
+        },
+        "facing=east": {
+            "model": "imba:block/ladder",
+            "y": 90
+        },
+        "facing=west": {
+            "model": "imba:block/ladder",
+            "y": 270
+        }
+    }
+}

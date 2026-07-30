@@ -1,0 +1,34 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "fable.hideseek.imba.mixin",
+    "compatibilityLevel": "JAVA_17",
+    "mixins": [
+        "PlayerEntityMixin",
+        "ServerPlayerEntityMixin",
+        "ServerPlayNetworkHandlerMixin",
+        "ScreenHandlerMixin",
+        "EntityMixin",
+        "WallClimbingMixin",
+        "StatueTickMixin",
+        "SeekerHealthMixin",
+        "NetherPortalBlockMixin"
+    ],
+    "client": [
+        "client.WorldRendererMixin",
+        "client.KeyboardMixin",
+        "client.PlayerRendererMixin",
+        "client.FirstPersonRendererMixin",
+        "client.ClientPlayerEntityMixin",
+        "client.ClientPlayerInputMixin",
+        "client.ClientEntitySneakMixin",
+        "client.InGameHudMixin",
+        "client.OtherClientPlayerEntityMixin",
+        "client.ClientPlayerLadderMixin",
+        "client.PlayerEntityClientMixin",
+        "client.MaskShadowMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

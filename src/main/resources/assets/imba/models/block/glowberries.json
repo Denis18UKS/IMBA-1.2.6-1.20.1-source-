@@ -1,0 +1,49 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "cross": "imba:block/glowberry",
+    "particle": "imba:block/glowberry"
+  },
+  "elements": [
+    {
+      "from": [0.8, 0, 7.94],
+      "to": [15.2, 16, 7.94],
+      "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+      "shade": false,
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#cross"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#cross"}
+      }
+    },
+    {
+      "from": [0.8, 0, 8.06],
+      "to": [15.2, 16, 8.06],
+      "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+      "shade": false,
+      "faces": {
+        "north": {"uv": [0, 0, 16, 16], "texture": "#cross"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#cross"}
+      }
+    },
+    {
+      "from": [7.94, 0, 0.8],
+      "to": [7.94, 16, 15.2],
+      "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+      "shade": false,
+      "faces": {
+        "west": {"uv": [0, 0, 16, 16], "texture": "#cross"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#cross"}
+      }
+    },
+    {
+      "from": [8.06, 0, 0.8],
+      "to": [8.06, 16, 15.2],
+      "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+      "shade": false,
+      "faces": {
+        "west": {"uv": [0, 0, 16, 16], "texture": "#cross"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#cross"}
+      }
+    }
+  ]
+}
