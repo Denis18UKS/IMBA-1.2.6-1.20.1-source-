@@ -1159,41 +1159,76 @@ public final class GameManager {
 
     private static void tickPortalMasks(MinecraftServer server) {
         Set<UUID> inside = new HashSet<>();
+
         for (ServerPlayerEntity masked : server.getPlayerManager().getPlayerList()) {
             if (!MaskState.hasMask(masked.getUuid())) {
                 continue;
             }
+
             MaskState state = MaskState.get(masked.getUuid());
             if (!state.statue || state.type != MaskType.PORTAL) {
                 continue;
             }
+
             boolean eastWest = Math.floorMod(Math.round(state.rotation / 90.0F), 2) == 1;
             Box trigger = eastWest
-                    ? new Box(state.anchorX - 0.18D, state.anchorY, state.anchorZ - 0.5D,
-                            state.anchorX + 0.18D, state.anchorY + 1.0D, state.anchorZ + 0.5D)
-                    : new Box(state.anchorX - 0.5D, state.anchorY, state.anchorZ - 0.18D,
-                            state.anchorX + 0.5D, state.anchorY + 1.0D, state.anchorZ + 0.18D);
+                    ? new Box(
+                            state.anchorX - 0.18D,
+                            state.anchorY,
+                            state.anchorZ - 0.5D,
+                            state.anchorX + 0.18D,
+                            state.anchorY + 1.0D,
+                            state.anchorZ + 0.5D)
+                    : new Box(
+                            state.anchorX - 0.5D,
+                            state.anchorY,
+                            state.anchorZ - 0.18D,
+                            state.anchorX + 0.5D,
+                            state.anchorY + 1.0D,
+                            state.anchorZ + 0.18D);
+
             for (ServerPlayerEntity traveler : server.getPlayerManager().getPlayerList()) {
-                if (traveler == masked || traveler.getWorld() != masked.getWorld()
+                if (traveler == masked
+                        || traveler.getWorld() != masked.getWorld()
                         || !traveler.getBoundingBox().intersects(trigger)) {
                     continue;
                 }
+
                 inside.add(traveler.getUuid());
+
+                boolean fromNether =
+                        traveler.getWorld().getRegistryKey() == net.minecraft.world.World.NETHER;
+
+                fable.hideseek.imba.config.PortalConfig.Data portalConfig =
+                        fable.hideseek.imba.config.PortalConfig.get(fromNether);
+
                 int ticks = portalContacts.merge(traveler.getUuid(), 1, Integer::sum);
-                if (ticks < Math.max(1, fable.hideseek.imba.config.PortalConfig.DATA.portalTicks)) {
+                if (ticks < Math.max(1, portalConfig.portalTicks)) {
                     continue;
                 }
+
                 portalContacts.remove(traveler.getUuid());
+
                 ServerWorld targetWorld = server.getWorld(
-                        fable.hideseek.imba.config.PortalConfig.worldKey());
-                if (targetWorld != null) {
-                    Vec3d target = fable.hideseek.imba.config.PortalConfig.targetPos();
-                    traveler.teleport(targetWorld, target.x, target.y, target.z,
-                            fable.hideseek.imba.config.PortalConfig.DATA.yaw,
-                            fable.hideseek.imba.config.PortalConfig.DATA.pitch);
+                        fable.hideseek.imba.config.PortalConfig.worldKey(fromNether));
+
+                if (targetWorld == null) {
+                    continue;
                 }
+
+                Vec3d target =
+                        fable.hideseek.imba.config.PortalConfig.targetPos(fromNether);
+
+                traveler.teleport(
+                        targetWorld,
+                        target.x,
+                        target.y,
+                        target.z,
+                        portalConfig.yaw,
+                        portalConfig.pitch);
             }
         }
+
         portalContacts.keySet().removeIf(id -> !inside.contains(id));
     }
 
