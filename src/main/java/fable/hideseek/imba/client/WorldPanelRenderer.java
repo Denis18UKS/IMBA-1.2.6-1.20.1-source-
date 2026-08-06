@@ -79,18 +79,17 @@ public final class WorldPanelRenderer {
         Direction facing = anchor.facing();
         begin(matrices, pos, facing, 2, client);
         int[] x = {-46, 0, 46};
-        drawCentered(matrices, consumers, client.textRenderer, "Таймер", x[0], -35, 0xFFFFAA00);
-        drawCentered(matrices, consumers, client.textRenderer, "Локация", x[1], -35, 0xFFFFAA00);
-        drawCentered(matrices, consumers, client.textRenderer, "Количество", x[2], -35, 0xFFFFAA00);
+        drawScaledCentered(matrices, consumers, client.textRenderer, "Таймер", x[0], -35, 42, 0xFFFFAA00);
+        drawScaledCentered(matrices, consumers, client.textRenderer, "Локация", x[1], -35, 42, 0xFFFFAA00);
+        drawScaledCentered(matrices, consumers, client.textRenderer, "Количество", x[2], -35, 42, 0xFFFFAA00);
         for (int columnX : x) drawCentered(matrices, consumers, client.textRenderer, "▲", columnX, -22, 0xFFFFFFFF);
 
         drawCentered(matrices, consumers, client.textRenderer,
                 String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60),
                 x[0], -2, 0xFFFFFFFF);
         drawPhoto(matrices, consumers, ClientLocationPhotos.texture(PanelData.selectedLocation), -12, -13, 12, 11);
-        drawCentered(matrices, consumers, client.textRenderer,
-                fit(client.textRenderer, PanelData.locationName(PanelData.selectedLocation), 58),
-                x[1], 13, 0xFFFFFFFF);
+        drawWrappedCentered(matrices, consumers, client.textRenderer,
+                PanelData.locationName(PanelData.selectedLocation), x[1], 10, 58, 0xFFFFFFFF);
         drawCentered(matrices, consumers, client.textRenderer, "❤ " + PanelData.hearts, x[2], -2, 0xFFFF5555);
 
         for (int columnX : x) drawCentered(matrices, consumers, client.textRenderer, "▼", columnX, 25, 0xFFFFFFFF);
@@ -149,15 +148,63 @@ public final class WorldPanelRenderer {
         draw(matrices, consumers, renderer, text, centerX - renderer.getWidth(text) / 2.0f, y, color);
     }
 
-    private static String fit(TextRenderer renderer, String value, int maximumWidth) {
-        String result = value == null ? "" : value;
-        if (renderer.getWidth(result) <= maximumWidth) {
-            return result;
+    private static void drawScaledCentered(MatrixStack matrices,
+            VertexConsumerProvider consumers,
+            TextRenderer renderer,
+            String text,
+            float centerX,
+            float y,
+            float maximumWidth,
+            int color) {
+        String value = text == null ? "" : text;
+        float width = Math.max(1.0F, renderer.getWidth(value));
+        float scale = Math.min(1.0F, maximumWidth / width);
+        matrices.push();
+        matrices.translate(centerX, y, 0.0F);
+        matrices.scale(scale, scale, 1.0F);
+        draw(matrices, consumers, renderer, value, -width / 2.0F, 0.0F, color);
+        matrices.pop();
+    }
+
+    private static void drawWrappedCentered(MatrixStack matrices,
+            VertexConsumerProvider consumers,
+            TextRenderer renderer,
+            String text,
+            float centerX,
+            float y,
+            float maximumWidth,
+            int color) {
+        String value = text == null ? "" : text.trim();
+        if (renderer.getWidth(value) <= maximumWidth) {
+            drawCentered(matrices, consumers, renderer, value, centerX, y + 4.0F, color);
+            return;
         }
-        while (!result.isEmpty() && renderer.getWidth(result + "…") > maximumWidth) {
-            result = result.substring(0, result.length() - 1);
+
+        int split = bestSplit(value);
+        if (split <= 0 || split >= value.length()) {
+            drawScaledCentered(matrices, consumers, renderer, value, centerX, y + 4.0F, maximumWidth, color);
+            return;
         }
-        return result + "…";
+
+        String first = value.substring(0, split).trim();
+        String second = value.substring(split).trim();
+        drawScaledCentered(matrices, consumers, renderer, first, centerX, y, maximumWidth, color);
+        drawScaledCentered(matrices, consumers, renderer, second, centerX, y + 9.0F, maximumWidth, color);
+    }
+
+    private static int bestSplit(String value) {
+        int middle = value.length() / 2;
+        for (int offset = 0; offset < value.length(); offset++) {
+            int left = middle - offset;
+            if (left > 0 && Character.isWhitespace(value.charAt(left))) {
+                return left;
+            }
+            int right = middle + offset;
+            if (right < value.length() && Character.isWhitespace(value.charAt(right))) {
+                return right;
+            }
+        }
+        return -1;
     }
 
     private static void drawPhoto(MatrixStack matrices, VertexConsumerProvider consumers,

@@ -53,7 +53,8 @@ public final class ModelTokenRenderer {
                      * was what moved the icon out of its inventory slot.
                      */
                     if (mode == ModelTransformationMode.GUI) {
-                        matrices.scale(1.20F, 1.20F, 1.20F);
+                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.72F : 1.0F;
+                        matrices.scale(guiScale, guiScale, guiScale);
                     }
                     MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(
                             state,

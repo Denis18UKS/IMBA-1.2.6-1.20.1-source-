@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import fable.hideseek.imba.ImbaMod;
+import fable.hideseek.imba.item.SeekerSwordUtil;
 
 public class ItemRules {
     private static final Set<String> RESTRICTED_ITEMS = new HashSet<>();
@@ -21,6 +22,7 @@ public class ItemRules {
         if (stack == null || stack.isEmpty()) return false;
         if(stack.getItem() == ImbaMod.HIDE_BUTTON) return true;
         if (fable.hideseek.imba.item.ModelEquipHandler.isModelItem(stack)) return true;
+        if (SeekerSwordUtil.isSeekerSword(stack)) return true;
         
         Identifier id = Registries.ITEM.getId(stack.getItem());
 

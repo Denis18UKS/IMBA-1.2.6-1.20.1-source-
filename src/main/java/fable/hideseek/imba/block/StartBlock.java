@@ -12,6 +12,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.text.Text;
@@ -62,7 +63,9 @@ public final class StartBlock extends BlockWithEntity implements BlockEntityProv
             player.sendMessage(Text.literal("§cИгра уже запущена"), true);
             return ActionResult.SUCCESS;
         }
-        GameManager.startNextRound(world.getServer());
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            GameManager.startNextRound(world.getServer(), serverPlayer);
+        }
         return ActionResult.SUCCESS;
     }
 }
