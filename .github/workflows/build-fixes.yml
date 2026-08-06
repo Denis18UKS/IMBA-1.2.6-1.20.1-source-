@@ -22,10 +22,13 @@ jobs:
       - name: Apply gameplay patch when present
         shell: bash
         run: |
-          if [ -f .github/patches/gameplay-fixes.patch.gz.b64 ]; then
-            base64 --decode .github/patches/gameplay-fixes.patch.gz.b64 | gzip --decompress > /tmp/gameplay-fixes.patch
+          if [ -f .github/patches/gameplay-fixes.part-00 ]; then
+            cat .github/patches/gameplay-fixes.part-* | base64 --decode | gzip --decompress > /tmp/gameplay-fixes.patch
             git apply --index /tmp/gameplay-fixes.patch
-            git rm .github/patches/gameplay-fixes.patch.gz.b64
+            git rm .github/patches/gameplay-fixes.part-*
+            if [ -f .github/patches/gameplay-fixes.patch.gz.b64 ]; then
+              git rm .github/patches/gameplay-fixes.patch.gz.b64
+            fi
             if [ -f .github/workflows/apply-gameplay-patch.yml ]; then
               git rm .github/workflows/apply-gameplay-patch.yml
             fi
