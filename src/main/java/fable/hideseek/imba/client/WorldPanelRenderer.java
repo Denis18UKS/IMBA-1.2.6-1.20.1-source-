@@ -23,10 +23,23 @@ import java.util.List;
 
 /** Draws settings and start labels directly on their block faces. */
 public final class WorldPanelRenderer {
+    private static final float HEADER_Y = -36.0F;
+    private static final float TOP_ARROW_Y = -22.0F;
+    private static final float PHOTO_TOP = -14.0F;
+    private static final float PHOTO_BOTTOM = 8.0F;
+    private static final float SINGLE_LOCATION_Y = 20.0F;
+    private static final float FIRST_LOCATION_LINE_Y = 14.0F;
+    private static final float SECOND_LOCATION_LINE_Y = 24.0F;
+    private static final float BOTTOM_ARROW_Y = 38.0F;
+    private static final float HEADER_MAX_WIDTH = 44.0F;
+    private static final float LOCATION_MAX_WIDTH = 58.0F;
+
     private record Anchor(BlockPos pos, Direction facing) {}
+
     private static final List<Anchor> SETTINGS = new ArrayList<>(), STARTS = new ArrayList<>();
     private static int scanCooldown;
     private static net.minecraft.client.world.ClientWorld cachedWorld;
+
     private WorldPanelRenderer() {}
 
     public static void register() {
@@ -39,7 +52,10 @@ public final class WorldPanelRenderer {
                 STARTS.clear();
                 scanCooldown = 0;
             }
-            if (scanCooldown-- <= 0) { scan(client); scanCooldown = 20; }
+            if (scanCooldown-- <= 0) {
+                scan(client);
+                scanCooldown = 20;
+            }
             for (Anchor anchor : List.copyOf(SETTINGS)) {
                 renderSettings(context.matrixStack(), context.consumers(), anchor, client);
             }
@@ -69,7 +85,8 @@ public final class WorldPanelRenderer {
         anchors.add(candidate);
     }
 
-    private static boolean isLoadedAndRemoved(MinecraftClient client, BlockPos pos, net.minecraft.block.Block block) {
+    private static boolean isLoadedAndRemoved(MinecraftClient client, BlockPos pos,
+            net.minecraft.block.Block block) {
         return client.world.isChunkLoaded(pos) && !client.world.getBlockState(pos).isOf(block);
     }
 
@@ -78,21 +95,67 @@ public final class WorldPanelRenderer {
         BlockPos pos = anchor.pos();
         Direction facing = anchor.facing();
         begin(matrices, pos, facing, 2, client);
-        int[] x = {-46, 0, 46};
-        drawScaledCentered(matrices, consumers, client.textRenderer, "Таймер", x[0], -35, 42, 0xFFFFAA00);
-        drawScaledCentered(matrices, consumers, client.textRenderer, "Локация", x[1], -35, 42, 0xFFFFAA00);
-        drawScaledCentered(matrices, consumers, client.textRenderer, "Количество", x[2], -35, 42, 0xFFFFAA00);
-        for (int columnX : x) drawCentered(matrices, consumers, client.textRenderer, "▲", columnX, -22, 0xFFFFFFFF);
 
-        drawCentered(matrices, consumers, client.textRenderer,
+        int[] columnX = {-46, 0, 46};
+        String[] headers = {"Таймер", "Локация", "Количество"};
+        float sharedHeaderScale = sharedScale(client.textRenderer, headers, HEADER_MAX_WIDTH);
+
+        for (int i = 0; i < headers.length; i++) {
+            drawCenteredAtScale(
+                    matrices,
+                    consumers,
+                    client.textRenderer,
+                    headers[i],
+                    columnX[i],
+                    HEADER_Y,
+                    sharedHeaderScale,
+                    0xFFFFAA00);
+        }
+
+        for (int x : columnX) {
+            drawCentered(matrices, consumers, client.textRenderer, "▲", x, TOP_ARROW_Y, 0xFFFFFFFF);
+        }
+
+        drawCentered(
+                matrices,
+                consumers,
+                client.textRenderer,
                 String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60),
-                x[0], -2, 0xFFFFFFFF);
-        drawPhoto(matrices, consumers, ClientLocationPhotos.texture(PanelData.selectedLocation), -12, -13, 12, 11);
-        drawWrappedCentered(matrices, consumers, client.textRenderer,
-                PanelData.locationName(PanelData.selectedLocation), x[1], 10, 58, 0xFFFFFFFF);
-        drawCentered(matrices, consumers, client.textRenderer, "❤ " + PanelData.hearts, x[2], -2, 0xFFFF5555);
+                columnX[0],
+                -2,
+                0xFFFFFFFF);
 
-        for (int columnX : x) drawCentered(matrices, consumers, client.textRenderer, "▼", columnX, 25, 0xFFFFFFFF);
+        drawPhoto(
+                matrices,
+                consumers,
+                ClientLocationPhotos.texture(PanelData.selectedLocation),
+                -12,
+                PHOTO_TOP,
+                12,
+                PHOTO_BOTTOM);
+
+        drawLocationName(
+                matrices,
+                consumers,
+                client.textRenderer,
+                PanelData.locationName(PanelData.selectedLocation),
+                columnX[1],
+                LOCATION_MAX_WIDTH,
+                0xFFFFFFFF);
+
+        drawCentered(
+                matrices,
+                consumers,
+                client.textRenderer,
+                "❤ " + PanelData.hearts,
+                columnX[2],
+                -2,
+                0xFFFF5555);
+
+        for (int x : columnX) {
+            drawCentered(matrices, consumers, client.textRenderer, "▼", x, BOTTOM_ARROW_Y, 0xFFFFFFFF);
+        }
+
         matrices.pop();
     }
 
@@ -102,31 +165,28 @@ public final class WorldPanelRenderer {
         Direction facing = anchor.facing();
         beginSingle(matrices, pos, facing, client);
         String title = client.world.getBlockEntity(pos) instanceof StartBlockEntity start
-                ? start.getTitle() : "Начать";
+                ? start.getTitle()
+                : "Начать";
         drawCentered(matrices, consumers, client.textRenderer, title, 0, -4, 0xFFFFAA00);
         matrices.pop();
     }
 
-    private static void begin(MatrixStack matrices, BlockPos pos, Direction facing, int height, MinecraftClient client) {
+    private static void begin(MatrixStack matrices, BlockPos pos, Direction facing, int height,
+            MinecraftClient client) {
         var camera = client.gameRenderer.getCamera().getPos();
         Direction right = facing.rotateYCounterclockwise();
         matrices.push();
-        // Anchor the text to the physical centre of the 3-wide multiblock, then
-        // move it just in front of the blocks.  Previously the pixel offsets
-        // were applied from the lower corner and placed the text above/behind
-        // the panel.
         matrices.translate(
                 pos.getX() - camera.x + .5 + right.getOffsetX(),
                 pos.getY() - camera.y + height / 2.0,
                 pos.getZ() - camera.z + .5 + right.getOffsetZ());
         matrices.translate(facing.getOffsetX() * .506, 0, facing.getOffsetZ() * .506);
-        // This is the same horizontal convention used by sign text.  The old
-        // 180-degree offset made both panels face away from their placer.
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation()));
         matrices.scale(.021f, -.021f, .021f);
     }
 
-    private static void beginSingle(MatrixStack matrices, BlockPos pos, Direction facing, MinecraftClient client) {
+    private static void beginSingle(MatrixStack matrices, BlockPos pos, Direction facing,
+            MinecraftClient client) {
         var camera = client.gameRenderer.getCamera().getPos();
         matrices.push();
         matrices.translate(
@@ -138,14 +198,49 @@ public final class WorldPanelRenderer {
         matrices.scale(.018f, -.018f, .018f);
     }
 
-    private static void draw(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float x, float y, int color) {
-        renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
-                TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+    private static void draw(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer,
+            String text, float x, float y, int color) {
+        renderer.draw(
+                text,
+                x,
+                y,
+                color,
+                false,
+                matrices.peek().getPositionMatrix(),
+                consumers,
+                TextRenderer.TextLayerType.NORMAL,
+                0,
+                LightmapTextureManager.MAX_LIGHT_COORDINATE);
     }
 
     private static void drawCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer,
             String text, float centerX, float y, int color) {
         draw(matrices, consumers, renderer, text, centerX - renderer.getWidth(text) / 2.0f, y, color);
+    }
+
+    private static float sharedScale(TextRenderer renderer, String[] values, float maximumWidth) {
+        int widest = 1;
+        for (String value : values) {
+            widest = Math.max(widest, renderer.getWidth(value == null ? "" : value));
+        }
+        return Math.min(1.0F, maximumWidth / widest);
+    }
+
+    private static void drawCenteredAtScale(MatrixStack matrices,
+            VertexConsumerProvider consumers,
+            TextRenderer renderer,
+            String text,
+            float centerX,
+            float y,
+            float scale,
+            int color) {
+        String value = text == null ? "" : text;
+        float width = Math.max(1.0F, renderer.getWidth(value));
+        matrices.push();
+        matrices.translate(centerX, y, 0.0F);
+        matrices.scale(scale, scale, 1.0F);
+        draw(matrices, consumers, renderer, value, -width / 2.0F, 0.0F, color);
+        matrices.pop();
     }
 
     private static void drawScaledCentered(MatrixStack matrices,
@@ -159,37 +254,60 @@ public final class WorldPanelRenderer {
         String value = text == null ? "" : text;
         float width = Math.max(1.0F, renderer.getWidth(value));
         float scale = Math.min(1.0F, maximumWidth / width);
-        matrices.push();
-        matrices.translate(centerX, y, 0.0F);
-        matrices.scale(scale, scale, 1.0F);
-        draw(matrices, consumers, renderer, value, -width / 2.0F, 0.0F, color);
-        matrices.pop();
+        drawCenteredAtScale(matrices, consumers, renderer, value, centerX, y, scale, color);
     }
 
-    private static void drawWrappedCentered(MatrixStack matrices,
+    private static void drawLocationName(MatrixStack matrices,
             VertexConsumerProvider consumers,
             TextRenderer renderer,
             String text,
             float centerX,
-            float y,
             float maximumWidth,
             int color) {
         String value = text == null ? "" : text.trim();
+        if (value.isEmpty()) {
+            return;
+        }
+
         if (renderer.getWidth(value) <= maximumWidth) {
-            drawCentered(matrices, consumers, renderer, value, centerX, y + 4.0F, color);
+            drawCentered(matrices, consumers, renderer, value, centerX, SINGLE_LOCATION_Y, color);
             return;
         }
 
         int split = bestSplit(value);
         if (split <= 0 || split >= value.length()) {
-            drawScaledCentered(matrices, consumers, renderer, value, centerX, y + 4.0F, maximumWidth, color);
+            drawScaledCentered(
+                    matrices,
+                    consumers,
+                    renderer,
+                    value,
+                    centerX,
+                    SINGLE_LOCATION_Y,
+                    maximumWidth,
+                    color);
             return;
         }
 
         String first = value.substring(0, split).trim();
         String second = value.substring(split).trim();
-        drawScaledCentered(matrices, consumers, renderer, first, centerX, y, maximumWidth, color);
-        drawScaledCentered(matrices, consumers, renderer, second, centerX, y + 9.0F, maximumWidth, color);
+        drawScaledCentered(
+                matrices,
+                consumers,
+                renderer,
+                first,
+                centerX,
+                FIRST_LOCATION_LINE_Y,
+                maximumWidth,
+                color);
+        drawScaledCentered(
+                matrices,
+                consumers,
+                renderer,
+                second,
+                centerX,
+                SECOND_LOCATION_LINE_Y,
+                maximumWidth,
+                color);
     }
 
     private static int bestSplit(String value) {
@@ -210,8 +328,6 @@ public final class WorldPanelRenderer {
     private static void drawPhoto(MatrixStack matrices, VertexConsumerProvider consumers,
             net.minecraft.util.Identifier texture, float left, float top, float right, float bottom) {
         MatrixStack.Entry entry = matrices.peek();
-        // Emissive entity layer bypasses directional/diffuse lighting and is
-        // stable with Sodium, Indium and Iris shader pipelines.
         VertexConsumer vertices = consumers.getBuffer(RenderLayer.getEntityTranslucentEmissive(texture));
         photoVertex(vertices, entry, left, bottom, 0.05f, 0, 1);
         photoVertex(vertices, entry, right, bottom, 0.05f, 1, 1);
