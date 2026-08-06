@@ -88,8 +88,9 @@ public final class HideButtonHandler {
                 z = support.getZ() + 0.5D + offset.z;
             }
         } else if (shouldCenterOnBlock(state.type)) {
-            x = Math.floor(x) + 0.5;
-            z = Math.floor(z) + 0.5;
+            x = Math.floor(x) + 0.5D;
+            y = Math.floor(y);
+            z = Math.floor(z) + 0.5D;
         } else if (state.type == MaskType.ITEM || state.type == MaskType.WALL_CLIMB) {
             Attachment attachment = findItemFrameAttachment(player);
             if (attachment != null) {

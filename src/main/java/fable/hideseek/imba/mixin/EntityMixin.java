@@ -1,5 +1,6 @@
 package fable.hideseek.imba.mixin;
 
+import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.game.GameRoles;
 import fable.hideseek.imba.mask.MaskCollisionShapes;
 import fable.hideseek.imba.mask.MaskState;
@@ -56,10 +57,10 @@ public class EntityMixin {
     @Inject(method = "isInsideWall", at = @At("HEAD"), cancellable = true)
     private void insideWall(CallbackInfoReturnable<Boolean> cir) {
         Entity self = (Entity) (Object) this;
-        if (self instanceof PlayerEntity player) {
-            if (MaskState.hasMask(player.getUuid())) {
-                cir.setReturnValue(false);
-            }
+        if (self instanceof PlayerEntity player
+                && (MaskState.hasMask(player.getUuid())
+                || (GameManager.isGameActive() && GameManager.isCurrentParticipant(player)))) {
+            cir.setReturnValue(false);
         }
     }
 }

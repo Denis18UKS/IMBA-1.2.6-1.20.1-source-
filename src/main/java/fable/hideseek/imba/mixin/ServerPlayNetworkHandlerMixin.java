@@ -65,7 +65,9 @@ public abstract class ServerPlayNetworkHandlerMixin {
             player.setYaw(packet.getYaw(player.getYaw()));
             player.setPitch(packet.getPitch(player.getPitch()));
         }
-        player.setPosition(state.anchorX, state.anchorY, state.anchorZ);
+        if (player.getPos().squaredDistanceTo(state.anchorX, state.anchorY, state.anchorZ) > 0.0001D) {
+            player.setPosition(state.anchorX, state.anchorY, state.anchorZ);
+        }
         player.setVelocity(0.0D, 0.0D, 0.0D);
         player.setNoGravity(true);
         player.fallDistance = 0.0F;

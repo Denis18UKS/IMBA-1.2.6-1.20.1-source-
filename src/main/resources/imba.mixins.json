@@ -12,7 +12,10 @@
         "WallClimbingMixin",
         "StatueTickMixin",
         "SeekerHealthMixin",
-        "NetherPortalBlockMixin"
+        "NetherPortalBlockMixin",
+        "LivingEntityDamageMixin",
+        "FarmlandBlockMixin",
+        "BedBlockMixin"
     ],
     "client": [
         "client.WorldRendererMixin",

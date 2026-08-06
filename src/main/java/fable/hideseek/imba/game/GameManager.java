@@ -18,8 +18,14 @@ import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.block.AbstractChestBlock;
+import net.minecraft.block.BarrelBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.FlowerPotBlock;
+import net.minecraft.block.ShulkerBoxBlock;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -44,8 +50,10 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.GameRules;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -54,6 +62,7 @@ public final class GameManager {
 
     private static final int EFFECT_FOREVER = Integer.MAX_VALUE;
     private static final double SEEKER_INTERACT_REACH = 4.5D;
+    private static final int MASK_PORTAL_TICKS = 30;
     private static final Identifier APPLE_ID = new Identifier("minecraft", "apple");
     private static final Identifier ATTACHED_PUMPKIN_STEM_ID =
             new Identifier("minecraft", "attached_pumpkin_stem");
@@ -75,7 +84,8 @@ public final class GameManager {
     private static int standaloneTimerTicks = 0;
 
     private static ServerPlayerEntity currentHider;
-    private static ServerPlayerEntity currentSeeker;
+    private static final Set<UUID> currentSeekers = new HashSet<>();
+    private static final Set<UUID> eliminatedSeekers = new HashSet<>();
     private static RoundDefinition currentRound;
     private static final Map<UUID, Long> interactionCooldowns = new HashMap<>();
     private static final Map<UUID, Long> blockAttackTicks = new HashMap<>();
@@ -83,7 +93,8 @@ public final class GameManager {
     private static final Map<UUID, Integer> portalContacts = new HashMap<>();
     private static final Map<UUID, String> lockedTeams = new HashMap<>();
     private static boolean paused;
-    private static Vec3d prepareSeekerAnchor;
+    private static boolean autoPaused;
+    private static final Map<UUID, Vec3d> prepareSeekerAnchors = new HashMap<>();
 
     private GameManager() {
     }
@@ -94,6 +105,7 @@ public final class GameManager {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
 
+            updateCurrentPlayerReference(player);
             if (!isGameActive() && GameConfig.SPAWN_TO_LOBBY_IF_GAME_INACTIVE) {
                 teleportToLobby(player);
             }
@@ -101,15 +113,48 @@ public final class GameManager {
             forceAdventure(player);
             restorePlayerHealth(player);
             if (isGameActive()) {
-                lockedTeams.put(player.getUuid(), player.getScoreboardTeam() == null
-                        ? "" : player.getScoreboardTeam().getName());
+                String expectedTeam = isCurrentHider(player)
+                        ? GameRoles.HIDER_TEAM
+                        : isCurrentSeeker(player)
+                                ? GameRoles.SEEKER_TEAM
+                                : player.getScoreboardTeam() == null
+                                        ? ""
+                                        : player.getScoreboardTeam().getName();
+                lockedTeams.put(player.getUuid(), expectedTeam);
+                if (isCurrentSeeker(player) && (phase == Phase.PREPARE || phase == Phase.ROUND)) {
+                    if (eliminatedSeekers.contains(player.getUuid())) {
+                        removeSeekerSword(player);
+                        teleportToLobby(player);
+                    } else {
+                        ensureSeekerSword(player);
+                        if (phase == Phase.PREPARE) {
+                            teleportToLobby(player);
+                            prepareSeekerAnchors.put(player.getUuid(), player.getPos());
+                            player.addStatusEffect(new StatusEffectInstance(
+                                    StatusEffects.BLINDNESS, Math.max(1, prepareTicks), 0,
+                                    false, false, false));
+                            player.addStatusEffect(new StatusEffectInstance(
+                                    StatusEffects.SLOWNESS, Math.max(1, prepareTicks), 10,
+                                    false, false, false));
+                        } else if (currentRound != null) {
+                            teleport(player, currentRound.worldKey, currentRound.seekerPos,
+                                    currentRound.seekerYaw, currentRound.seekerPitch);
+                        }
+                    }
+                }
             }
             MaskNetworking.syncAllTo(player);
         });
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayerEntity player = handler.getPlayer();
-            if (isGameActive() && (isCurrentHider(player) || isCurrentSeeker(player))) {
-                beginReturn(server, Text.literal("§cРаунд сброшен: один из участников вышел"));
+            if (phase != Phase.PREPARE && phase != Phase.ROUND) {
+                return;
+            }
+            if (isCurrentHider(player)) {
+                autoPause(server, "§eАвтопауза: прячущийся отключился");
+            } else if (isCurrentSeeker(player)
+                    && countOnlineSeekersExcluding(server, player.getUuid()) == 0) {
+                autoPause(server, "§eАвтопауза: все искатели отключились");
             }
         });
 
@@ -143,6 +188,10 @@ public final class GameManager {
             }
 
             Block usedBlock = world.getBlockState(hitResult.getBlockPos()).getBlock();
+            if (GameRoles.isParticipant(player) && isProtectedContainer(usedBlock)) {
+                player.sendMessage(Text.literal("§cВо время игры участникам нельзя открывать сундуки"), true);
+                return ActionResult.FAIL;
+            }
             if (!player.isCreative()
                     && (usedBlock == net.minecraft.block.Blocks.CAVE_VINES
                     || usedBlock == net.minecraft.block.Blocks.CAVE_VINES_PLANT
@@ -255,6 +304,50 @@ public final class GameManager {
         return phase != Phase.IDLE;
     }
 
+    public static boolean isReturnPhase() {
+        return phase == Phase.RETURN;
+    }
+
+    public static boolean shouldCancelDamage(LivingEntity entity, DamageSource source) {
+        if (!isGameActive() || entity == null) {
+            return false;
+        }
+
+        // Every non-player living entity is protected for the complete game,
+        // including the return phase. This prevents both teams and environment
+        // damage from killing map mobs.
+        if (!(entity instanceof PlayerEntity player)) {
+            return true;
+        }
+
+        // After a win/loss nobody can die while blindness and the lobby return
+        // countdown are running.
+        if (phase == Phase.RETURN) {
+            return true;
+        }
+
+        // Seeker hearts are changed only by the explicit miss penalty, which
+        // uses setHealth directly. All vanilla/external DamageSource instances
+        // are rejected here.
+        if (isCurrentSeeker(player)) {
+            return true;
+        }
+
+        // A hider must never drown or suffocate while using a mask.
+        return isCurrentHider(player)
+                && (source.isOf(DamageTypes.DROWN) || source.isOf(DamageTypes.IN_WALL));
+    }
+
+    public static boolean isCurrentParticipant(PlayerEntity player) {
+        return isCurrentHider(player) || isCurrentSeeker(player);
+    }
+
+    public static boolean usesSeekerHealth(PlayerEntity player) {
+        return (phase == Phase.PREPARE || phase == Phase.ROUND)
+                && isCurrentSeeker(player)
+                && !eliminatedSeekers.contains(player.getUuid());
+    }
+
     public static boolean isPaused() {
         return paused;
     }
@@ -268,16 +361,18 @@ public final class GameManager {
             return false;
         }
         paused = true;
+        autoPaused = false;
         MaskNetworking.broadcastGameState(server);
         server.getPlayerManager().broadcast(Text.literal("§eИгра поставлена на паузу"), false);
         return true;
     }
 
     public static boolean resumeGame(MinecraftServer server) {
-        if (!isGameActive() || !paused) {
+        if (!isGameActive() || !paused || !participantsAvailable(server)) {
             return false;
         }
         paused = false;
+        autoPaused = false;
         MaskNetworking.broadcastGameState(server);
         server.getPlayerManager().broadcast(Text.literal("§aИгра продолжена"), false);
         return true;
@@ -350,22 +445,27 @@ public final class GameManager {
     }
 
     public static void startNextRound(MinecraftServer server) {
-        if (server == null) {
-            return;
-        }
-        if (phase != Phase.IDLE) {
-            return;
-        }
-        if (GameConfig.ROUNDS.isEmpty()) {
+        startNextRound(server, null);
+    }
+
+    public static void startNextRound(MinecraftServer server, ServerPlayerEntity starter) {
+        if (server == null || phase != Phase.IDLE || GameConfig.ROUNDS.isEmpty()) {
             return;
         }
 
         standaloneTimerTicks = 0;
 
-        ServerPlayerEntity hider = GameRoles.getFirstHider(server);
-        ServerPlayerEntity seeker = GameRoles.getFirstSeeker(server);
+        ServerPlayerEntity hider;
+        List<ServerPlayerEntity> seekers;
+        if (starter != null) {
+            hider = starter;
+            seekers = GameRoles.assignForStartButton(server, starter);
+        } else {
+            hider = GameRoles.getFirstHider(server);
+            seekers = GameRoles.getSeekers(server);
+        }
 
-        if (hider == null || seeker == null) {
+        if (hider == null || seekers.isEmpty()) {
             server.getPlayerManager().broadcast(Text.literal(
                     "§cДля запуска нужны минимум 2 игрока: один прячущийся и один искатель"), false);
             return;
@@ -376,15 +476,21 @@ public final class GameManager {
         currentRound = GameConfig.getSelectedLocation();
 
         currentHider = hider;
-        currentSeeker = seeker;
+        currentSeekers.clear();
+        eliminatedSeekers.clear();
+        for (ServerPlayerEntity seeker : seekers) {
+            currentSeekers.add(seeker.getUuid());
+        }
 
         phase = Phase.PREPARE;
         prepareTicks = GameConfig.PREPARE_SECONDS * 20;
         roundTicks = GameConfig.ROUND_SECONDS * 20;
         returnTicks = 0;
         paused = false;
+        autoPaused = false;
         sculkContacts.clear();
         portalContacts.clear();
+        prepareSeekerAnchors.clear();
         lockParticipantTeams(server);
 
         if (currentRound.setEvening) {
@@ -395,40 +501,29 @@ public final class GameManager {
         }
 
         clearForRound(hider);
-        clearForRound(seeker);
-
         forceAdventure(hider);
-        forceAdventure(seeker);
-
-        teleport(hider, currentRound.worldKey, currentRound.hiderPos, currentRound.hiderYaw, currentRound.hiderPitch);
-        teleportToLobby(seeker);
-        prepareSeekerAnchor = seeker.getPos();
-
+        teleport(hider, currentRound.worldKey, currentRound.hiderPos,
+                currentRound.hiderYaw, currentRound.hiderPitch);
         giveRoundItems(hider, currentRound);
-        giveSeekerLoadout(seeker);
-
-        seeker.addStatusEffect(new StatusEffectInstance(
-                StatusEffects.BLINDNESS,
-                prepareTicks,
-                0,
-                false,
-                false,
-                false));
-
-        seeker.addStatusEffect(new StatusEffectInstance(
-                StatusEffects.SLOWNESS,
-                prepareTicks,
-                10,
-                false,
-                false,
-                false));
-
         restorePlayerHealth(hider);
-        restorePlayerHealth(seeker);
+
+        for (ServerPlayerEntity seeker : seekers) {
+            clearForRound(seeker);
+            forceAdventure(seeker);
+            teleportToLobby(seeker);
+            prepareSeekerAnchors.put(seeker.getUuid(), seeker.getPos());
+            giveSeekerLoadout(seeker);
+
+            seeker.addStatusEffect(new StatusEffectInstance(
+                    StatusEffects.BLINDNESS, prepareTicks, 0, false, false, false));
+            seeker.addStatusEffect(new StatusEffectInstance(
+                    StatusEffects.SLOWNESS, prepareTicks, 10, false, false, false));
+            restorePlayerHealth(seeker);
+        }
 
         server.getPlayerManager().broadcast(
-                Text.literal(
-                        "§eРаунд начался. У Юни есть " + GameConfig.PREPARE_SECONDS + " секунд, чтобы спрятаться."),
+                Text.literal("§eРаунд начался. У прячущегося есть "
+                        + GameConfig.PREPARE_SECONDS + " секунд, чтобы спрятаться."),
                 false);
         MaskNetworking.broadcastGameState(server);
     }
@@ -456,12 +551,11 @@ public final class GameManager {
         enforceLockedTeams(server);
 
         if ((phase == Phase.PREPARE || phase == Phase.ROUND) && !participantsAvailable(server)) {
-            beginReturn(server, Text.literal("§cРаунд сброшен: участник недоступен"));
-            return;
+            autoPause(server, missingParticipantsMessage(server));
         }
         if (paused) {
             if (phase == Phase.PREPARE) {
-                lockPreparingSeeker();
+                lockPreparingSeekers(server);
             }
             return;
         }
@@ -497,7 +591,7 @@ public final class GameManager {
     }
 
     private static void tickPrepare(MinecraftServer server) {
-        lockPreparingSeeker();
+        lockPreparingSeekers(server);
         prepareTicks--;
         int secondsLeft = Math.max(0, (prepareTicks + 19) / 20);
 
@@ -505,40 +599,41 @@ public final class GameManager {
             currentHider.setExperienceLevel(secondsLeft);
             currentHider.setExperiencePoints(0);
         }
-        if (currentSeeker != null) {
-            currentSeeker.setExperienceLevel(secondsLeft);
-            currentSeeker.setExperiencePoints(0);
+        for (ServerPlayerEntity seeker : onlineCurrentSeekers(server)) {
+            seeker.setExperienceLevel(secondsLeft);
+            seeker.setExperiencePoints(0);
         }
 
         if (prepareTicks <= 0) {
-            releaseSeeker(server);
+            releaseSeekers(server);
         }
     }
 
-    private static void releaseSeeker(MinecraftServer server) {
+    private static void releaseSeekers(MinecraftServer server) {
         phase = Phase.ROUND;
-        prepareSeekerAnchor = null;
+        prepareSeekerAnchors.clear();
 
-        if (currentSeeker != null && currentRound != null) {
-            teleport(
-                    currentSeeker,
-                    currentRound.worldKey,
-                    currentRound.seekerPos,
-                    currentRound.seekerYaw,
-                    currentRound.seekerPitch);
-
-            currentSeeker.removeStatusEffect(StatusEffects.BLINDNESS);
-            currentSeeker.removeStatusEffect(StatusEffects.SLOWNESS);
-            restorePlayerHealth(currentSeeker);
-            currentSeeker.setExperienceLevel(GameConfig.ROUND_SECONDS);
-            currentSeeker.setExperiencePoints(0);
+        if (currentRound != null) {
+            for (ServerPlayerEntity seeker : onlineCurrentSeekers(server)) {
+                if (eliminatedSeekers.contains(seeker.getUuid())) {
+                    continue;
+                }
+                teleport(seeker, currentRound.worldKey, currentRound.seekerPos,
+                        currentRound.seekerYaw, currentRound.seekerPitch);
+                seeker.removeStatusEffect(StatusEffects.BLINDNESS);
+                seeker.removeStatusEffect(StatusEffects.SLOWNESS);
+                restorePlayerHealth(seeker);
+                seeker.setExperienceLevel(GameConfig.ROUND_SECONDS);
+                seeker.setExperiencePoints(0);
+                ensureSeekerSword(seeker);
+            }
         }
         if (currentHider != null) {
             currentHider.setExperienceLevel(GameConfig.ROUND_SECONDS);
             currentHider.setExperiencePoints(0);
         }
 
-        server.getPlayerManager().broadcast(Text.literal("§6Искатель выпущен. Время пошло!"), false);
+        server.getPlayerManager().broadcast(Text.literal("§6Искатели выпущены. Время пошло!"), false);
         MaskNetworking.broadcastGameState(server);
     }
 
@@ -552,7 +647,10 @@ public final class GameManager {
             player.setExperiencePoints(0);
         }
 
-        if (currentSeeker != null && currentSeeker.getHealth() <= 0.0f) {
+        List<ServerPlayerEntity> onlineSeekers = onlineCurrentSeekers(server);
+        if (!onlineSeekers.isEmpty()
+                && onlineSeekers.stream().allMatch(
+                        seeker -> eliminatedSeekers.contains(seeker.getUuid()))) {
             finishHiderWinByHearts(server);
             return;
         }
@@ -598,7 +696,8 @@ public final class GameManager {
 
         phase = Phase.RETURN;
         paused = false;
-        prepareSeekerAnchor = null;
+        autoPaused = false;
+        prepareSeekerAnchors.clear();
         returnTicks = GameConfig.RETURN_TO_LOBBY_SECONDS * 20;
         MaskNetworking.broadcastGameState(server);
 
@@ -608,6 +707,7 @@ public final class GameManager {
                 MaskService.resetMask(player);
             }
             player.clearStatusEffects();
+            restorePlayerHealth(player);
 
             player.addStatusEffect(new StatusEffectInstance(
                     StatusEffects.BLINDNESS,
@@ -642,14 +742,16 @@ public final class GameManager {
         }
 
         currentHider = null;
-        currentSeeker = null;
+        currentSeekers.clear();
+        eliminatedSeekers.clear();
         currentRound = null;
 
         prepareTicks = 0;
         roundTicks = 0;
         returnTicks = 0;
         paused = false;
-        prepareSeekerAnchor = null;
+        autoPaused = false;
+        prepareSeekerAnchors.clear();
         lockedTeams.clear();
         sculkContacts.clear();
         portalContacts.clear();
@@ -963,13 +1065,46 @@ public final class GameManager {
         if (!SeekerSwordUtil.isSeekerSword(seeker.getMainHandStack())) {
             return false;
         }
-        return phase == Phase.ROUND && isCurrentSeeker(seeker);
+        return phase == Phase.ROUND
+                && !paused
+                && isCurrentSeeker(seeker)
+                && !eliminatedSeekers.contains(seeker.getUuid());
     }
 
     private static void damageSeekerHeart(ServerPlayerEntity seeker, String message) {
-        float newHealth = seeker.getHealth() - 2.0f;
-        seeker.setHealth(Math.max(0.0f, newHealth));
+        if (seeker == null || eliminatedSeekers.contains(seeker.getUuid())) {
+            return;
+        }
+
+        float newHealth = seeker.getHealth() - 2.0F;
+        if (newHealth > 0.0F) {
+            seeker.setHealth(newHealth);
+            GameMessages.send(seeker, Text.literal(message));
+            return;
+        }
+
+        // Do not let vanilla death handling take over. The seeker is eliminated
+        // from the round, loses the special sword and waits safely in the lobby.
+        eliminatedSeekers.add(seeker.getUuid());
+        seeker.setHealth(1.0F);
+        removeSeekerSword(seeker);
+        teleportToLobby(seeker);
+        seeker.clearStatusEffects();
+        seeker.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.BLINDNESS, EFFECT_FOREVER, 0, false, false, false));
+        seeker.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.SLOWNESS, EFFECT_FOREVER, 10, false, false, false));
         GameMessages.send(seeker, Text.literal(message));
+        seeker.sendMessage(Text.literal("§cВы потеряли все сердца и выбыли из поиска"), true);
+
+        MinecraftServer server = seeker.getServer();
+        if (server != null) {
+            List<ServerPlayerEntity> onlineSeekers = onlineCurrentSeekers(server);
+            if (!onlineSeekers.isEmpty() && onlineSeekers.stream().allMatch(
+                    player -> eliminatedSeekers.contains(player.getUuid()))) {
+                finishHiderWinByHearts(server);
+            }
+        }
     }
 
     private static void giveRoundItems(ServerPlayerEntity hider, RoundDefinition round) {
@@ -1006,6 +1141,19 @@ public final class GameManager {
     }
 
     private static void giveSeekerLoadout(ServerPlayerEntity seeker) {
+        removeSeekerSword(seeker);
+        seeker.getInventory().insertStack(SeekerSwordUtil.createSword());
+    }
+
+    private static void ensureSeekerSword(ServerPlayerEntity seeker) {
+        if (seeker == null) {
+            return;
+        }
+        for (int slot = 0; slot < seeker.getInventory().size(); slot++) {
+            if (SeekerSwordUtil.isSeekerSword(seeker.getInventory().getStack(slot))) {
+                return;
+            }
+        }
         seeker.getInventory().insertStack(SeekerSwordUtil.createSword());
     }
 
@@ -1077,9 +1225,6 @@ public final class GameManager {
             currentHider = newPlayer;
         }
 
-        if (currentSeeker != null && currentSeeker.getUuid().equals(newPlayer.getUuid())) {
-            currentSeeker = newPlayer;
-        }
     }
 
     private static boolean isCurrentHider(PlayerEntity player) {
@@ -1087,7 +1232,7 @@ public final class GameManager {
     }
 
     private static boolean isCurrentSeeker(PlayerEntity player) {
-        return currentSeeker != null && currentSeeker.getUuid().equals(player.getUuid());
+        return player != null && currentSeekers.contains(player.getUuid());
     }
 
     private static void forceAdventure(ServerPlayerEntity player) {
@@ -1203,7 +1348,7 @@ public final class GameManager {
                         fable.hideseek.imba.config.PortalConfig.get(fromNether);
 
                 int ticks = portalContacts.merge(traveler.getUuid(), 1, Integer::sum);
-                if (ticks < Math.max(1, portalConfig.portalTicks)) {
+                if (ticks < MASK_PORTAL_TICKS) {
                     continue;
                 }
 
@@ -1232,22 +1377,73 @@ public final class GameManager {
         portalContacts.keySet().removeIf(id -> !inside.contains(id));
     }
 
-    private static void lockPreparingSeeker() {
-        if (currentSeeker == null || prepareSeekerAnchor == null) {
-            return;
+    private static void lockPreparingSeekers(MinecraftServer server) {
+        for (ServerPlayerEntity seeker : onlineCurrentSeekers(server)) {
+            if (eliminatedSeekers.contains(seeker.getUuid())) {
+                continue;
+            }
+            Vec3d anchor = prepareSeekerAnchors.get(seeker.getUuid());
+            if (anchor == null) {
+                anchor = seeker.getPos();
+                prepareSeekerAnchors.put(seeker.getUuid(), anchor);
+            }
+            if (seeker.getPos().squaredDistanceTo(anchor) > 0.0001D) {
+                seeker.setPosition(anchor.x, anchor.y, anchor.z);
+            }
+            seeker.setVelocity(Vec3d.ZERO);
+            seeker.setOnGround(true);
+            seeker.fallDistance = 0.0F;
         }
-        if (currentSeeker.getPos().squaredDistanceTo(prepareSeekerAnchor) > 0.0001D) {
-            currentSeeker.setPosition(prepareSeekerAnchor.x, prepareSeekerAnchor.y, prepareSeekerAnchor.z);
-        }
-        currentSeeker.setVelocity(Vec3d.ZERO);
-        currentSeeker.setOnGround(true);
-        currentSeeker.fallDistance = 0.0F;
     }
 
     private static boolean participantsAvailable(MinecraftServer server) {
-        return currentHider != null && currentSeeker != null
-                && server.getPlayerManager().getPlayer(currentHider.getUuid()) != null
-                && server.getPlayerManager().getPlayer(currentSeeker.getUuid()) != null;
+        if (server == null || currentHider == null
+                || server.getPlayerManager().getPlayer(currentHider.getUuid()) == null) {
+            return false;
+        }
+        return !onlineCurrentSeekers(server).isEmpty();
+    }
+
+    private static List<ServerPlayerEntity> onlineCurrentSeekers(MinecraftServer server) {
+        List<ServerPlayerEntity> result = new ArrayList<>();
+        if (server == null) {
+            return result;
+        }
+        for (UUID uuid : currentSeekers) {
+            ServerPlayerEntity seeker = server.getPlayerManager().getPlayer(uuid);
+            if (seeker != null) {
+                result.add(seeker);
+            }
+        }
+        return result;
+    }
+
+    private static int countOnlineSeekersExcluding(MinecraftServer server, UUID excluded) {
+        int count = 0;
+        for (ServerPlayerEntity seeker : onlineCurrentSeekers(server)) {
+            if (!seeker.getUuid().equals(excluded)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static String missingParticipantsMessage(MinecraftServer server) {
+        if (currentHider == null
+                || server.getPlayerManager().getPlayer(currentHider.getUuid()) == null) {
+            return "§eАвтопауза: прячущийся недоступен";
+        }
+        return "§eАвтопауза: нет доступных искателей";
+    }
+
+    private static void autoPause(MinecraftServer server, String message) {
+        if (server == null || phase == Phase.IDLE || phase == Phase.RETURN || paused) {
+            return;
+        }
+        paused = true;
+        autoPaused = true;
+        server.getPlayerManager().broadcast(Text.literal(message), false);
+        MaskNetworking.broadcastGameState(server);
     }
 
     private static void lockParticipantTeams(MinecraftServer server) {
@@ -1283,6 +1479,13 @@ public final class GameManager {
         }
     }
 
+
+    private static boolean isProtectedContainer(Block block) {
+        return block instanceof AbstractChestBlock<?>
+                || block instanceof BarrelBlock
+                || block instanceof ShulkerBoxBlock
+                || block == net.minecraft.block.Blocks.ENDER_CHEST;
+    }
 
     private static void maintainRoleEffects(MinecraftServer server) {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {

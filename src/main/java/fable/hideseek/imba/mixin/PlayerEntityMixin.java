@@ -49,8 +49,6 @@ public abstract class PlayerEntityMixin {
             // the statue anchor. Client mixins handle its movement separately.
             return;
         }
-        self.calculateDimensions();
-
         if (!MaskState.hasMask(self.getUuid())) {
             self.setNoGravity(false);
             return;

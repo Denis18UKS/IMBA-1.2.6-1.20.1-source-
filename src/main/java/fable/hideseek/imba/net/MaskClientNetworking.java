@@ -52,6 +52,12 @@ public final class MaskClientNetworking {
                                 attachedToFrame,
                                 attachmentFacing == null ? Direction.NORTH : attachmentFacing,
                                 frameRotationStep);
+                        if (client.world != null) {
+                            var maskedPlayer = client.world.getPlayerByUuid(uuid);
+                            if (maskedPlayer != null) {
+                                maskedPlayer.calculateDimensions();
+                            }
+                        }
                     });
                 });
 
@@ -61,8 +67,11 @@ public final class MaskClientNetworking {
                     client.execute(() -> {
                         ClientMaskData.reset(uuid);
                         if (client.world != null) {
-                            fable.hideseek.imba.client.ClientStatueLock.release(
-                                    client.world.getPlayerByUuid(uuid));
+                            var maskedPlayer = client.world.getPlayerByUuid(uuid);
+                            fable.hideseek.imba.client.ClientStatueLock.release(maskedPlayer);
+                            if (maskedPlayer != null) {
+                                maskedPlayer.calculateDimensions();
+                            }
                         }
                     });
                 });
@@ -86,6 +95,9 @@ public final class MaskClientNetworking {
                                 fable.hideseek.imba.client.ClientStatueLock.apply(player);
                             } else {
                                 fable.hideseek.imba.client.ClientStatueLock.release(player);
+                            }
+                            if (player != null) {
+                                player.calculateDimensions();
                             }
                         }
                     });
