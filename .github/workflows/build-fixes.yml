@@ -1,0 +1,50 @@
+name: Build gameplay fixes
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew clean build --no-daemon --stacktrace
+
+      - name: Prepare source archive
+        run: |
+          mkdir -p artifacts
+          zip -r artifacts/IMBA-1.2.6-1.20.1-fixed-sources.zip . \
+            -x '.git/*' '.gradle/*' 'build/*' 'run/*' 'artifacts/*'
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: imba-fixed-sources
+          path: artifacts/IMBA-1.2.6-1.20.1-fixed-sources.zip
+          if-no-files-found: error
+
+      - name: Upload built mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: imba-built-jar
+          path: build/libs/*.jar
+          if-no-files-found: error
