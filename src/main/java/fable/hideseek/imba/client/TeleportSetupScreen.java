@@ -1,6 +1,7 @@
 package fable.hideseek.imba.client;
 
-import fable.hideseek.imba.net.MaskNetworking;
+import fable.hideseek.imba.game.GameConfig;
+import fable.hideseek.imba.net.TeleportToolNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
@@ -32,51 +33,100 @@ public final class TeleportSetupScreen extends Screen {
     private TextFieldWidget xField;
     private TextFieldWidget yField;
     private TextFieldWidget zField;
-    private Text error = Text.empty();
+    private TextFieldWidget yawField;
+    private TextFieldWidget pitchField;
+    private Text status = Text.empty();
+    private int statusColor = 0xAAAAAA;
 
     public TeleportSetupScreen() {
-        super(Text.translatable("screen.imba.teleport.title"));
+        super(Text.literal("Настройщик телепортов"));
     }
 
     @Override
     protected void init() {
-        int left = width / 2 - 100;
-        int top = height / 2 - 78;
-        var player = MinecraftClient.getInstance().player;
+        int left = width / 2 - 110;
+        int top = Math.max(8, height / 2 - 112);
 
         addDrawableChild(ButtonWidget.builder(modeText(), button -> {
             modeIndex = (modeIndex + 1) % MODES.length;
             button.setMessage(modeText());
-        }).dimensions(left, top, 200, 20).build());
+            status = Text.literal("Выбрана точка: " + modeLabel(MODES[modeIndex]));
+            statusColor = 0xAAAAAA;
+        }).dimensions(left, top, 220, 20).build());
 
-        xField = coordinateField(left, top + 30, "X", player == null ? 0.0D : player.getX());
-        yField = coordinateField(left, top + 55, "Y", player == null ? 0.0D : player.getY());
-        zField = coordinateField(left, top + 80, "Z", player == null ? 0.0D : player.getZ());
+        var player = MinecraftClient.getInstance().player;
+        xField = coordinateField(left, top + 28, player == null ? 0.0D : player.getX());
+        yField = coordinateField(left, top + 52, player == null ? 0.0D : player.getY());
+        zField = coordinateField(left, top + 76, player == null ? 0.0D : player.getZ());
+        yawField = coordinateField(left, top + 100, player == null ? 0.0D : player.getYaw());
+        pitchField = coordinateField(left, top + 124, player == null ? 0.0D : player.getPitch());
 
-        addDrawableChild(ButtonWidget.builder(Text.translatable("screen.imba.teleport.save"), button -> save())
-                .dimensions(left, top + 110, 98, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Отмена"), button -> close())
-                .dimensions(left + 102, top + 110, 98, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Текущая позиция + автосохранение"), button -> {
+            fillFromPlayer();
+            save();
+        }).dimensions(left, top + 152, 220, 20).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.literal("Сохранить"), button -> save())
+                .dimensions(left, top + 176, 106, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Телепорт"), button -> testTeleport())
+                .dimensions(left + 114, top + 176, 106, 20).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.literal("Закрыть"), button -> close())
+                .dimensions(left, top + 200, 220, 20).build());
     }
 
-    private TextFieldWidget coordinateField(int x, int y, String label, double value) {
-        TextFieldWidget field = new TextFieldWidget(textRenderer, x, y, 200, 20, Text.literal(label));
-        field.setText(String.format(java.util.Locale.ROOT, "%.3f", value));
+    private TextFieldWidget coordinateField(int x, int y, double value) {
+        TextFieldWidget field = new TextFieldWidget(textRenderer, x, y, 220, 20, Text.empty());
+        field.setText(format(value));
         field.setMaxLength(24);
         addDrawableChild(field);
         return field;
     }
 
     private Text modeText() {
-        return Text.literal("Точка: " + fable.hideseek.imba.game.GameConfig.getPointDisplayName(MODES[modeIndex]));
+        return Text.literal("Точка: " + modeLabel(MODES[modeIndex]));
+    }
+
+    private static String modeLabel(String mode) {
+        if ("lobby".equals(mode)) {
+            return "Лобби";
+        }
+        int underscore = mode.indexOf('_');
+        if (underscore <= 1) {
+            return mode;
+        }
+        try {
+            int index = Integer.parseInt(mode.substring(1, underscore)) - 1;
+            String role = mode.endsWith("_hider") ? "прячущийся" : "искатель";
+            return GameConfig.getLocationName(index) + " — " + role;
+        } catch (NumberFormatException ignored) {
+            return mode;
+        }
+    }
+
+    private void fillFromPlayer() {
+        var player = MinecraftClient.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        xField.setText(format(player.getX()));
+        yField.setText(format(player.getY()));
+        zField.setText(format(player.getZ()));
+        yawField.setText(format(player.getYaw()));
+        pitchField.setText(format(player.getPitch()));
     }
 
     private void save() {
         try {
-            double x = Double.parseDouble(xField.getText().replace(',', '.'));
-            double y = Double.parseDouble(yField.getText().replace(',', '.'));
-            double z = Double.parseDouble(zField.getText().replace(',', '.'));
-            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+            double x = parse(xField);
+            double y = parse(yField);
+            double z = parse(zField);
+            float yaw = (float) parse(yawField);
+            float pitch = (float) parse(pitchField);
+
+            if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
+                    || !Float.isFinite(yaw) || !Float.isFinite(pitch)
+                    || pitch < -90.0F || pitch > 90.0F) {
                 throw new NumberFormatException();
             }
 
@@ -85,22 +135,47 @@ public final class TeleportSetupScreen extends Screen {
             buf.writeDouble(x);
             buf.writeDouble(y);
             buf.writeDouble(z);
-            ClientPlayNetworking.send(MaskNetworking.TELEPORT_SAVE_PACKET, buf);
-            close();
+            buf.writeFloat(yaw);
+            buf.writeFloat(pitch);
+            ClientPlayNetworking.send(TeleportToolNetworking.SAVE, buf);
+
+            status = Text.literal("Автосохранено: " + modeLabel(MODES[modeIndex]));
+            statusColor = 0x55FF55;
         } catch (NumberFormatException ignored) {
-            error = Text.translatable("screen.imba.teleport.invalid");
+            status = Text.literal("Некорректные координаты или угол");
+            statusColor = 0xFF5555;
         }
+    }
+
+    private void testTeleport() {
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeString(MODES[modeIndex]);
+        ClientPlayNetworking.send(TeleportToolNetworking.TEST, buf);
+        close();
+    }
+
+    private static double parse(TextFieldWidget field) {
+        return Double.parseDouble(field.getText().replace(',', '.'));
+    }
+
+    private static String format(double value) {
+        return String.format(java.util.Locale.ROOT, "%.3f", value);
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context);
-        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, height / 2 - 102, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, "X", width / 2 - 114, height / 2 - 45, 0xAAAAAA);
-        context.drawTextWithShadow(textRenderer, "Y", width / 2 - 114, height / 2 - 20, 0xAAAAAA);
-        context.drawTextWithShadow(textRenderer, "Z", width / 2 - 114, height / 2 + 5, 0xAAAAAA);
-        if (!error.getString().isEmpty()) {
-            context.drawCenteredTextWithShadow(textRenderer, error, width / 2, height / 2 + 58, 0xFF5555);
+        int top = Math.max(8, height / 2 - 112);
+        int labelX = width / 2 - 128;
+
+        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, Math.max(1, top - 11), 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, "X", labelX, top + 34, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, "Y", labelX, top + 58, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, "Z", labelX, top + 82, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, "Yaw", labelX - 12, top + 106, 0xAAAAAA);
+        context.drawTextWithShadow(textRenderer, "Pitch", labelX - 18, top + 130, 0xAAAAAA);
+        if (!status.getString().isEmpty()) {
+            context.drawCenteredTextWithShadow(textRenderer, status, width / 2, top + 224, statusColor);
         }
         super.render(context, mouseX, mouseY, delta);
     }
