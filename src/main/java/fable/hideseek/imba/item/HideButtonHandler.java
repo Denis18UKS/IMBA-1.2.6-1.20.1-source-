@@ -86,6 +86,10 @@ public final class HideButtonHandler {
                 x = support.getX() + 0.5D + offset.x;
                 y = support.getY() + 1.0D + offset.y;
                 z = support.getZ() + 0.5D + offset.z;
+            } else {
+                x = Math.floor(x) + 0.5D;
+                y = Math.floor(y);
+                z = Math.floor(z) + 0.5D;
             }
         } else if (shouldCenterOnBlock(state.type)) {
             x = Math.floor(x) + 0.5D;
@@ -100,8 +104,9 @@ public final class HideButtonHandler {
                 state.attachedToFrame = attachment.frame;
                 state.attachmentFacing = attachment.facing;
             } else {
-                x = Math.floor(x) + 0.5;
-                z = Math.floor(z) + 0.5;
+                x = Math.floor(x) + 0.5D;
+                y = Math.floor(y);
+                z = Math.floor(z) + 0.5D;
             }
         }
 
