@@ -13,7 +13,6 @@ import net.minecraft.block.enums.DoorHinge;
 import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.block.enums.WallMountLocation;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
@@ -57,14 +56,8 @@ public final class MaskRenderHelper {
         switch (type) {
             case DOOR -> renderDoor(uuid, matrices, consumers, light, rotationY, doorOpen);
             case PORTAL -> {
-                /*
-                 * Use the vanilla baked portal model and its shared animated
-                 * atlas sprite. A separately timed quad creates a visible
-                 * one-block rectangle inside a real portal.
-                 */
                 applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
-                renderBlock(matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                        Blocks.NETHER_PORTAL.getDefaultState());
+                renderBlock(matrices, consumers, light, Blocks.NETHER_PORTAL.getDefaultState());
             }
             case LADDER_REVERSED -> renderLadder(matrices, consumers, light, rotationY);
             case BUTTON -> renderButton(uuid, matrices, consumers, light, rotationY, buttonPressed);
@@ -78,8 +71,6 @@ public final class MaskRenderHelper {
                 Block lantern = ClientMaskData.BLOCKS.get(uuid);
                 BlockState lanternState = lantern == null ? Blocks.LANTERN.getDefaultState() : lantern.getDefaultState();
                 if (lanternState.contains(net.minecraft.block.LanternBlock.HANGING)) {
-                    // Preserve the selected variant: a vanilla lantern stands,
-                    // while the dedicated IMBA hanging lantern hangs.
                     lanternState = lanternState.with(
                             net.minecraft.block.LanternBlock.HANGING,
                             lantern == ImbaMod.HANGING_LANTERN);
@@ -230,8 +221,6 @@ public final class MaskRenderHelper {
 
         matrices.push();
         matrices.translate(0.5D, 0.5D, 0.5D);
-        // The mask is deliberately upside down, but otherwise uses the exact
-        // vanilla ladder model, texture, culling and world lighting.
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f));
         matrices.translate(-0.5D, -0.5D, -0.5D);
         renderBlock(matrices, consumers, light, state);
@@ -254,11 +243,7 @@ public final class MaskRenderHelper {
         matrices.translate(0.5D, 0.5D, 0.5D);
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(facing.asRotation()));
         matrices.translate(0.0D, 0.0D, 0.4375D);
-
-        // One interaction equals one vanilla item-frame step. Positive Z is
-        // clockwise from the viewer with this renderer's facing transform.
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(frameRotationStep * 45.0f));
-
         matrices.scale(0.5f, 0.5f, 0.5f);
 
         MinecraftClient.getInstance().getItemRenderer()
@@ -272,17 +257,16 @@ public final class MaskRenderHelper {
             ItemStack stack, boolean statue) {
         matrices.push();
         /*
-         * Use the same GROUND transformation and scale as the real dropped
-         * potion. The statue is moved only 1/32 block forward, which is enough
-         * to avoid depth fighting with the brewing stand without changing its
-         * visible placement.
+         * Use the same world light passed to the player renderer instead of
+         * forcing MAX_LIGHT. This makes the disguised potion react to the room
+         * exactly like the ordinary brewing-stand model beside it.
          */
         matrices.translate(0.5D, statue ? 0.15D : 0.24D, statue ? 0.53125D : 0.5D);
         matrices.scale(0.5f, 0.5f, 0.5f);
 
         MinecraftClient.getInstance().getItemRenderer()
                 .renderItem(stack, ModelTransformationMode.GROUND,
-                        LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV,
+                        light, OverlayTexture.DEFAULT_UV,
                         matrices, consumers, null, 0);
 
         matrices.pop();
