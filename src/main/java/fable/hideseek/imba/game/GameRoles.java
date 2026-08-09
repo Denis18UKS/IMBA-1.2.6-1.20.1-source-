@@ -94,6 +94,24 @@ public final class GameRoles {
         return seekers;
     }
 
+    /** Removes both online and offline scoreboard members from round teams. */
+    public static void clearParticipantTeams(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+        clearTeamMembers(server, server.getScoreboard().getTeam(HIDER_TEAM));
+        clearTeamMembers(server, server.getScoreboard().getTeam(SEEKER_TEAM));
+    }
+
+    private static void clearTeamMembers(MinecraftServer server, Team team) {
+        if (team == null) {
+            return;
+        }
+        for (String playerName : new ArrayList<>(team.getPlayerList())) {
+            server.getScoreboard().clearPlayerTeam(playerName);
+        }
+    }
+
     private static Team getOrCreateTeam(MinecraftServer server, String name) {
         Team team = server.getScoreboard().getTeam(name);
         return team == null ? server.getScoreboard().addTeam(name) : team;
