@@ -47,13 +47,13 @@ public final class ModelTokenRenderer {
 
                     matrices.push();
                     /*
-                     * ItemRenderer has already translated builtin models by
-                     * (-0.5, -0.5, -0.5), which centres block coordinates
-                     * [0..1] at the item origin. The former second translation
-                     * was what moved the icon out of its inventory slot.
+                     * Builtin block models can visually fill more than the
+                     * nominal 16x16 GUI box. The portal needs a little extra
+                     * margin so its animated quad never crosses a hotbar or
+                     * inventory slot border.
                      */
                     if (mode == ModelTransformationMode.GUI) {
-                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.72F : 1.0F;
+                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.58F : 1.0F;
                         matrices.scale(guiScale, guiScale, guiScale);
                     }
                     MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(
