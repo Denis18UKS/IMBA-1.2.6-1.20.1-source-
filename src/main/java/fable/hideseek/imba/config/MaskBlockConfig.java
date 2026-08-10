@@ -14,12 +14,18 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Manual classification used only by statue positioning.
+ * Manual classification used by statue positioning.
  *
- * All blocks are treated as full cubes by default. Blocks added to
- * nonFullBlocks keep the player's exact XYZ when entering statue mode, so no
- * automatic centering can push the player into slabs, stairs, farmland or
- * other partial geometry.
+ * This config is authoritative: the real vanilla/modded VoxelShape is NOT
+ * allowed to override the value selected in the GUI.
+ *
+ * A block marked FULL is treated by statue positioning as a full 1x1x1 cube
+ * even when the real block is a slab, stair, farmland or any other partial
+ * shape. A block marked NON-FULL keeps exact player coordinates instead of
+ * receiving full-cube grid snapping.
+ *
+ * All blocks are FULL by default. Only explicit NON-FULL overrides are stored
+ * in nonFullBlocks, keeping the JSON small even with large modpacks.
  *
  * This config intentionally does NOT affect MaskHitbox/EntityDimensions.
  */
