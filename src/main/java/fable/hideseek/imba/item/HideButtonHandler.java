@@ -27,6 +27,7 @@ import net.minecraft.util.math.Vec3d;
 public final class HideButtonHandler {
 
     private static final int EFFECT_FOREVER = Integer.MAX_VALUE;
+    private static final double FULL_BLOCK_EPSILON = 1.0E-7D;
 
     private HideButtonHandler() {
     }
@@ -112,17 +113,23 @@ public final class HideButtonHandler {
             }
         } else if (state.type == MaskType.BLOCK) {
             /*
-             * Manual classification deliberately replaces automatic VoxelShape
-             * guessing. Hitboxes are NEVER changed here.
+             * MaskBlockConfig is the source of truth. We deliberately do NOT
+             * inspect the block's real VoxelShape here.
              *
-             * Full blocks use the classic one-block snap. A block explicitly
-             * marked as non-full keeps the player's exact XYZ, so entering
-             * statue mode cannot move the unchanged mask hitbox into a slab,
-             * stair, farmland or another partial support.
+             * FULL means: behave as a full 1x1x1 cube even if the actual block
+             * is a slab, stair, farmland or another partial block. X/Z are
+             * centered on the grid and Y is raised to the top of the current
+             * whole block cell. Math.ceil is important: floor(64.5) would put a
+             * player standing on a half-height block at Y=64 and therefore
+             * inside that block; ceil(64.5) puts the unchanged player hitbox at
+             * Y=65, exactly as if the support were a full cube.
+             *
+             * NON-FULL means: do not force full-cube positioning at all; keep
+             * the player's exact XYZ. Hitboxes are NEVER changed here.
              */
             if (MaskBlockConfig.isFull(state.block)) {
                 x = Math.floor(x) + 0.5D;
-                y = Math.floor(y);
+                y = snapFullBlockY(y);
                 z = Math.floor(z) + 0.5D;
             }
         } else if (shouldCenterOnBlock(state.type)) {
@@ -162,6 +169,11 @@ public final class HideButtonHandler {
         player.calculateDimensions();
         MaskNetworking.refresh(player);
         GameMessages.send(player, Text.literal("§aВы замаскировались"));
+    }
+
+    private static double snapFullBlockY(double currentY) {
+        // Preserve an already exact integer Y instead of moving it up by one.
+        return Math.ceil(currentY - FULL_BLOCK_EPSILON);
     }
 
     private record Attachment(Vec3d pos, Direction facing, boolean frame) {}
