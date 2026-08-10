@@ -53,8 +53,14 @@ public final class ModelTokenRenderer {
                      * inventory slot border.
                      */
                     if (mode == ModelTransformationMode.GUI) {
-                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.58F : 1.0F;
-                        matrices.scale(guiScale, guiScale, guiScale);
+                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.48F : 1.0F;
+                        if (guiScale != 1.0F) {
+                            // Scale around the block model's centre. Scaling around
+                            // the origin pulled the portal toward a slot corner.
+                            matrices.translate(0.5D, 0.5D, 0.5D);
+                            matrices.scale(guiScale, guiScale, guiScale);
+                            matrices.translate(-0.5D, -0.5D, -0.5D);
+                        }
                     }
                     MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(
                             state,
