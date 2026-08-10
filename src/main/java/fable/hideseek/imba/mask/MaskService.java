@@ -3,17 +3,17 @@ package fable.hideseek.imba.mask;
 import fable.hideseek.imba.ImbaMod;
 import fable.hideseek.imba.net.MaskNetworking;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ButtonBlock;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.LadderBlock;
-import net.minecraft.block.BlockState;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.EmptyBlockView;
 
@@ -36,9 +36,14 @@ public final class MaskService {
 
         player.removeStatusEffect(StatusEffects.INVISIBILITY);
         player.setNoGravity(false);
+        player.setSneaking(false);
         player.setVelocity(Vec3d.ZERO);
         player.fallDistance = 0.0f;
         player.calculateDimensions();
+        // Force a position packet after the dimension reset. Without this the
+        // former hider could keep stale movement dimensions client-side until
+        // the first sneak toggle and fail to step onto slabs/stairs.
+        player.requestTeleport(player.getX(), player.getY(), player.getZ());
 
         MaskNetworking.sendMaskReset(player);
         MaskNetworking.sendStatueSync(player, false);
@@ -68,10 +73,24 @@ public final class MaskService {
 
         MaskState.disableStatue(player.getUuid());
 
+        snapToSingleBlock(player);
         player.calculateDimensions();
 
         MaskNetworking.sendMaskUpdate(player, type, block, item);
         MaskNetworking.sendStatueSync(player, false);
+    }
+
+    /**
+     * Commands that apply a mask always start from one deterministic block.
+     * This removes half-block/edge positions before any later auto-attachment.
+     */
+    private static void snapToSingleBlock(ServerPlayerEntity player) {
+        double x = Math.floor(player.getX()) + 0.5D;
+        double y = Math.floor(player.getY());
+        double z = Math.floor(player.getZ()) + 0.5D;
+        player.requestTeleport(x, y, z);
+        player.setVelocity(Vec3d.ZERO);
+        player.fallDistance = 0.0F;
     }
 
     public static MaskType resolveBlockType(Block block) {

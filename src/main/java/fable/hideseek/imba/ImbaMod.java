@@ -10,11 +10,13 @@ import fable.hideseek.imba.config.GameSettingsConfig;
 import fable.hideseek.imba.config.LocationSettingsConfig;
 import fable.hideseek.imba.config.TeleportConfig;
 import fable.hideseek.imba.game.GameManager;
+import fable.hideseek.imba.game.GameplayRulesHandler;
 import fable.hideseek.imba.item.HideButtonHandler;
 import fable.hideseek.imba.item.HideItem;
 import fable.hideseek.imba.item.ModelEquipHandler;
 import fable.hideseek.imba.item.TeleportToolHandler;
 import fable.hideseek.imba.net.MaskNetworking;
+import fable.hideseek.imba.net.TeleportToolNetworking;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
@@ -143,10 +145,12 @@ public class ImbaMod implements ModInitializer {
 
                 CommandInit.register();
                 MaskNetworking.register();
+                TeleportToolNetworking.register();
                 HideButtonHandler.register();
                 ModelEquipHandler.register();
                 TeleportToolHandler.register();
                 GameManager.register();
+                GameplayRulesHandler.register();
         }
 
         private void registerBlockItem(String name, Block block) {

@@ -70,6 +70,7 @@ public final class MaskClientNetworking {
                             var maskedPlayer = client.world.getPlayerByUuid(uuid);
                             fable.hideseek.imba.client.ClientStatueLock.release(maskedPlayer);
                             if (maskedPlayer != null) {
+                                maskedPlayer.setSneaking(false);
                                 maskedPlayer.calculateDimensions();
                             }
                         }
