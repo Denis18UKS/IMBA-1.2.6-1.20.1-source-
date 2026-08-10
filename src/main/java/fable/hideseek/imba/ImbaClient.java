@@ -5,6 +5,8 @@ import fable.hideseek.imba.client.KeyBindings;
 import fable.hideseek.imba.client.TeleportSetupScreen;
 import fable.hideseek.imba.client.PotionOffsetScreen;
 import fable.hideseek.imba.client.LocationCameraScreen;
+import fable.hideseek.imba.client.MaskBlockConfigScreen;
+import fable.hideseek.imba.client.MaskBlockConfigClientNetworking;
 import fable.hideseek.imba.client.ClientPhotoCapture;
 import fable.hideseek.imba.client.StartBlockNameScreen;
 import fable.hideseek.imba.client.WorldPanelRenderer;
@@ -28,6 +30,7 @@ public class ImbaClient implements ClientModInitializer {
         MaskClientNetworking.registerClient();
         KeyBindings.register();
         ModelTokenRenderer.register();
+        MaskBlockConfigClientNetworking.register();
 
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.GLOWBERRIES, RenderLayer.getCutout());
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.GRASS, RenderLayer.getCutout());
@@ -37,6 +40,7 @@ public class ImbaClient implements ClientModInitializer {
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.WATER_MASK, RenderLayer.getTranslucent());
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.LAVA_MASK, RenderLayer.getTranslucent());
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.LADDER_MASK, RenderLayer.getCutout());
+        BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.POTION_RENDER_BLOCK, RenderLayer.getCutout());
         ColorProviderRegistry.BLOCK.register((state, world, pos, tintIndex) -> 0x3F76E4, ImbaMod.WATER_MASK);
         ColorProviderRegistry.BLOCK.register((state, world, pos, tintIndex) -> 0xFFFFFF, ImbaMod.LAVA_MASK);
         ColorProviderRegistry.ITEM.register((stack, tintIndex) -> 0x79C05A, ImbaMod.GRASS.asItem());
@@ -53,6 +57,10 @@ public class ImbaClient implements ClientModInitializer {
             }
             if (world.isClient && player.getStackInHand(hand).isOf(ImbaMod.LOCATION_CAMERA)) {
                 net.minecraft.client.MinecraftClient.getInstance().setScreen(new LocationCameraScreen());
+                return TypedActionResult.success(player.getStackInHand(hand));
+            }
+            if (world.isClient && player.getStackInHand(hand).isOf(ImbaMod.MASK_BLOCK_CONFIG_TOOL)) {
+                net.minecraft.client.MinecraftClient.getInstance().setScreen(new MaskBlockConfigScreen());
                 return TypedActionResult.success(player.getStackInHand(hand));
             }
             return TypedActionResult.pass(player.getStackInHand(hand));
