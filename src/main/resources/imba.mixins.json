@@ -15,7 +15,8 @@
         "NetherPortalBlockMixin",
         "LivingEntityDamageMixin",
         "FarmlandBlockMixin",
-        "BedBlockMixin"
+        "BedBlockMixin",
+        "DoorCollisionMixin"
     ],
     "client": [
         "client.WorldRendererMixin",
@@ -29,7 +30,8 @@
         "client.OtherClientPlayerEntityMixin",
         "client.ClientPlayerLadderMixin",
         "client.PlayerEntityClientMixin",
-        "client.MaskShadowMixin"
+        "client.MaskShadowMixin",
+        "client.ClientDoorCollisionMixin"
     ],
     "injectors": {
         "defaultRequire": 1
