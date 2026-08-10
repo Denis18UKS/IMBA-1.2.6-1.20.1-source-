@@ -3,9 +3,8 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.ImbaMod;
 import fable.hideseek.imba.client.VanillaMaskRenderContext;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.ItemRenderer;
@@ -23,9 +22,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Renders the special 2D potion mask through BlockModelRenderer while the mask
- * context is active. This gives its quads the same world/block lighting path as
- * the bottles that are part of a real brewing-stand block model.
+ * The special potion mask keeps the item's existing transforms/size, but its
+ * pixels are rendered as a real world block model. This avoids entity/item
+ * lighting being darker than the bottles in a nearby brewing stand.
  */
 @Mixin(ItemRenderer.class)
 public abstract class ItemRendererMaskMixin {
@@ -37,7 +36,7 @@ public abstract class ItemRendererMaskMixin {
             method = "renderItem(Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;IILnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;Lnet/minecraft/world/World;I)V",
             at = @At("HEAD"),
             cancellable = true)
-    private void imba$renderPotionMaskAsWorldModel(
+    private void imba$renderPotionMaskAsWorldBlock(
             ItemStack stack,
             ModelTransformationMode transformationType,
             int light,
@@ -55,25 +54,25 @@ public abstract class ItemRendererMaskMixin {
         }
 
         World renderWorld = context.world();
-        BakedModel model = getModel(stack, renderWorld, null, seed);
-        BlockState lightingState = Blocks.BREWING_STAND.getDefaultState();
+        MinecraftClient client = MinecraftClient.getInstance();
+        BakedModel itemModel = getModel(stack, renderWorld, null, seed);
+        BlockState renderState = ImbaMod.POTION_RENDER_BLOCK.getDefaultState();
 
         matrices.push();
-        model.getTransformation().getTransformation(transformationType).apply(false, matrices);
+        // Preserve the exact old item placement/scale so this change affects
+        // lighting only, not the visual size or attachment position.
+        itemModel.getTransformation().getTransformation(transformationType).apply(false, matrices);
         matrices.translate(-0.5D, -0.5D, -0.5D);
 
-        VertexConsumer vertices = vertexConsumers.getBuffer(RenderLayer.getCutout());
-        MinecraftClient.getInstance().getBlockRenderManager().getModelRenderer().render(
-                renderWorld,
-                model,
-                lightingState,
+        VertexConsumer vertices = vertexConsumers.getBuffer(RenderLayers.getBlockLayer(renderState));
+        client.getBlockRenderManager().renderBlock(
+                renderState,
                 context.pos(),
+                renderWorld,
                 matrices,
                 vertices,
                 false,
-                Random.create(lightingState.getRenderingSeed(context.pos())),
-                lightingState.getRenderingSeed(context.pos()),
-                overlay);
+                Random.create(renderState.getRenderingSeed(context.pos())));
 
         matrices.pop();
         ci.cancel();
