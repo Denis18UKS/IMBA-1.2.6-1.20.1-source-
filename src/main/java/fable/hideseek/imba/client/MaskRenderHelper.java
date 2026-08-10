@@ -19,8 +19,10 @@ import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.UUID;
 
@@ -59,7 +61,7 @@ public final class MaskRenderHelper {
                 applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
                 renderBlock(matrices, consumers, light, Blocks.NETHER_PORTAL.getDefaultState());
             }
-            case LADDER_REVERSED -> renderLadder(matrices, consumers, light, rotationY);
+            case LADDER_REVERSED -> renderLadder(uuid, matrices, consumers, light, rotationY);
             case BUTTON -> renderButton(uuid, matrices, consumers, light, rotationY, buttonPressed);
             case SCULK_VEIN -> {
                 applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
@@ -106,7 +108,7 @@ public final class MaskRenderHelper {
                 var item = ClientMaskData.ITEMS.get(uuid);
                 if (item != null) {
                     if (MaskService.isSpecialPotion(item)) {
-                        renderPotionStanding(matrices, consumers, light, new ItemStack(item), statue);
+                        renderPotionStanding(uuid, matrices, consumers, light, new ItemStack(item), statue);
                     } else {
                         renderWallItem(
                                 matrices,
@@ -213,17 +215,32 @@ public final class MaskRenderHelper {
         renderBlock(matrices, consumers, light, state);
     }
 
-    private static void renderLadder(MatrixStack matrices, VertexConsumerProvider consumers, int light,
+    private static void renderLadder(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers, int light,
             float rotationY) {
         Direction facing = rotationToDirection(rotationY);
         BlockState state = Blocks.LADDER.getDefaultState()
                 .with(net.minecraft.block.LadderBlock.FACING, facing);
 
+        MinecraftClient client = MinecraftClient.getInstance();
+        Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
+        BlockPos renderPos = anchor != null
+                ? BlockPos.ofFloored(anchor.x, anchor.y, anchor.z)
+                : client.player != null ? client.player.getBlockPos() : BlockPos.ORIGIN;
+
         matrices.push();
         matrices.translate(0.5D, 0.5D, 0.5D);
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f));
         matrices.translate(-0.5D, -0.5D, -0.5D);
-        renderBlock(matrices, consumers, light, state);
+
+        VanillaMaskRenderContext.begin(
+                VanillaMaskRenderContext.Mode.WORLD_BLOCK,
+                client.world,
+                renderPos);
+        try {
+            renderBlock(matrices, consumers, light, state);
+        } finally {
+            VanillaMaskRenderContext.clear();
+        }
         matrices.pop();
     }
 
@@ -253,21 +270,41 @@ public final class MaskRenderHelper {
         matrices.pop();
     }
 
-    private static void renderPotionStanding(MatrixStack matrices, VertexConsumerProvider consumers, int light,
-            ItemStack stack, boolean statue) {
+    private static void renderPotionStanding(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers,
+            int light, ItemStack stack, boolean statue) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
+
+        BlockPos renderPos;
+        if (anchor != null) {
+            renderPos = BlockPos.ofFloored(anchor.x, anchor.y - (statue ? 0.75D : 0.5D), anchor.z);
+        } else if (client.player != null) {
+            renderPos = client.player.getBlockPos();
+        } else {
+            renderPos = BlockPos.ORIGIN;
+        }
+
         matrices.push();
-        /*
-         * Use the same world light passed to the player renderer instead of
-         * forcing MAX_LIGHT. This makes the disguised potion react to the room
-         * exactly like the ordinary brewing-stand model beside it.
-         */
         matrices.translate(0.5D, statue ? 0.15D : 0.24D, statue ? 0.53125D : 0.5D);
         matrices.scale(0.5f, 0.5f, 0.5f);
 
-        MinecraftClient.getInstance().getItemRenderer()
-                .renderItem(stack, ModelTransformationMode.GROUND,
-                        light, OverlayTexture.DEFAULT_UV,
-                        matrices, consumers, null, 0);
+        VanillaMaskRenderContext.begin(
+                VanillaMaskRenderContext.Mode.POTION_ITEM_AS_BLOCK,
+                client.world,
+                renderPos);
+        try {
+            client.getItemRenderer().renderItem(
+                    stack,
+                    ModelTransformationMode.GROUND,
+                    light,
+                    OverlayTexture.DEFAULT_UV,
+                    matrices,
+                    consumers,
+                    client.world,
+                    0);
+        } finally {
+            VanillaMaskRenderContext.clear();
+        }
 
         matrices.pop();
     }
