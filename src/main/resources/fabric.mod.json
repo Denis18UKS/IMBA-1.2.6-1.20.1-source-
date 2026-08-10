@@ -6,10 +6,12 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"fable.hideseek.imba.ImbaMod"
+			"fable.hideseek.imba.ImbaMod",
+			"fable.hideseek.imba.net.WallClimbNetworking"
 		],
 		"client": [
-			"fable.hideseek.imba.ImbaClient"
+			"fable.hideseek.imba.ImbaClient",
+			"fable.hideseek.imba.client.WallClimbClientNetworking"
 		]
 	},
 	"mixins": [
