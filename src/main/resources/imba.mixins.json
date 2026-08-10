@@ -16,7 +16,9 @@
         "LivingEntityDamageMixin",
         "FarmlandBlockMixin",
         "BedBlockMixin",
-        "DoorCollisionMixin"
+        "DoorCollisionMixin",
+        "TntEntityMixin",
+        "MaskServiceGuardMixin"
     ],
     "client": [
         "client.WorldRendererMixin",
