@@ -7,7 +7,11 @@ import net.minecraft.world.World;
 
 import java.util.UUID;
 
-/** Samples the surrounding air lighting used by vanilla wall/stand models. */
+/**
+ * Legacy packed-light fallback for masks that still use entity-style rendering.
+ * Ladder and potion now bypass this approximation through dedicated vanilla
+ * renderer mixins in MaskRenderHelper.
+ */
 public final class MaskLightHelper {
     private MaskLightHelper() {
     }
