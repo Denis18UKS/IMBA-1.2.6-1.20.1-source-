@@ -1,6 +1,7 @@
 package fable.hideseek.imba.item;
 
 import fable.hideseek.imba.config.AttachmentConfig;
+import fable.hideseek.imba.config.MaskBlockConfig;
 import fable.hideseek.imba.game.GameMessages;
 import fable.hideseek.imba.mask.MaskState;
 import fable.hideseek.imba.mask.MaskService;
@@ -22,7 +23,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.shape.VoxelShape;
 
 public final class HideButtonHandler {
 
@@ -112,17 +112,19 @@ public final class HideButtonHandler {
             }
         } else if (state.type == MaskType.BLOCK) {
             /*
-             * Do not snap Y with floor(). A player standing on a slab, stair,
-             * farmland or another non-full support block has a fractional feet
-             * Y. Flooring it teleports the unchanged mask hitbox into the block.
-             * Resolve the actual vanilla collision surface at the target block
-             * centre and keep the existing hitbox completely untouched.
+             * Manual classification deliberately replaces automatic VoxelShape
+             * guessing. Hitboxes are NEVER changed here.
+             *
+             * Full blocks use the classic one-block snap. A block explicitly
+             * marked as non-full keeps the player's exact XYZ, so entering
+             * statue mode cannot move the unchanged mask hitbox into a slab,
+             * stair, farmland or another partial support.
              */
-            double targetX = Math.floor(x) + 0.5D;
-            double targetZ = Math.floor(z) + 0.5D;
-            x = targetX;
-            y = resolveStatueSurfaceY(player, targetX, targetZ, y);
-            z = targetZ;
+            if (MaskBlockConfig.isFull(state.block)) {
+                x = Math.floor(x) + 0.5D;
+                y = Math.floor(y);
+                z = Math.floor(z) + 0.5D;
+            }
         } else if (shouldCenterOnBlock(state.type)) {
             x = Math.floor(x) + 0.5D;
             y = Math.floor(y);
@@ -193,51 +195,6 @@ public final class HideButtonHandler {
         BlockPos below = feet.down();
         return player.getWorld().getBlockState(below).isOf(net.minecraft.block.Blocks.BREWING_STAND)
                 ? below : null;
-    }
-
-    /**
-     * Returns the real top collision surface below the target X/Z. This only
-     * changes statue placement; MaskHitbox/EntityDimensions are not modified.
-     */
-    private static double resolveStatueSurfaceY(ServerPlayerEntity player, double targetX, double targetZ,
-            double fallbackY) {
-        final double epsilon = 1.0E-4D;
-        int startY = (int) Math.floor(fallbackY - epsilon);
-        double bestTop = Double.NEGATIVE_INFINITY;
-
-        // Two blocks are enough for normal supports and also cover tall shapes
-        // such as fences while keeping the lookup local and deterministic.
-        for (int offset = 0; offset <= 2; offset++) {
-            BlockPos supportPos = new BlockPos(
-                    (int) Math.floor(targetX),
-                    startY - offset,
-                    (int) Math.floor(targetZ));
-            var supportState = player.getWorld().getBlockState(supportPos);
-            VoxelShape shape = supportState.getCollisionShape(player.getWorld(), supportPos);
-            if (shape.isEmpty()) {
-                continue;
-            }
-
-            double localX = targetX - supportPos.getX();
-            double localZ = targetZ - supportPos.getZ();
-            for (Box part : shape.getBoundingBoxes()) {
-                boolean containsXZ = localX >= part.minX - epsilon && localX <= part.maxX + epsilon
-                        && localZ >= part.minZ - epsilon && localZ <= part.maxZ + epsilon;
-                if (!containsXZ) {
-                    continue;
-                }
-
-                double worldTop = supportPos.getY() + part.maxY;
-                if (worldTop <= fallbackY + 0.10D && worldTop > bestTop) {
-                    bestTop = worldTop;
-                }
-            }
-        }
-
-        if (bestTop != Double.NEGATIVE_INFINITY && fallbackY - bestTop <= 1.60D) {
-            return bestTop;
-        }
-        return fallbackY;
     }
 
     private static boolean shouldCenterOnBlock(MaskType type) {
