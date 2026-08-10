@@ -1,6 +1,7 @@
 package fable.hideseek.imba.mixin.client;
 
 import fable.hideseek.imba.client.ClientMaskData;
+import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -58,9 +59,7 @@ public class WorldRendererMixin {
 
         matrices.push();
         matrices.translate(playerX - cameraX, playerY - cameraY, playerZ - cameraZ);
-        int maskLight = WorldRenderer.getLightmapCoordinates(
-                client.world,
-                net.minecraft.util.math.BlockPos.ofFloored(playerX, playerY + 0.5D, playerZ));
+        int maskLight = MaskLightHelper.resolve(uuid, client.world, playerX, playerY, playerZ);
         MaskRenderHelper.renderMask(uuid, matrices, vertexConsumers, maskLight);
         matrices.pop();
 
