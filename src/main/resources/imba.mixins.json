@@ -22,6 +22,9 @@
         "EntityPlayerDoorCollisionMixin"
     ],
     "client": [
+        "client.BlockRenderManagerMaskMixin",
+        "client.ItemRendererMaskMixin",
+        "client.ClientEntityPlayerDoorCollisionMixin",
         "client.WorldRendererMixin",
         "client.KeyboardMixin",
         "client.PlayerRendererMixin",
@@ -35,10 +38,7 @@
         "client.PlayerEntityClientMixin",
         "client.MaskShadowMixin",
         "client.ClientDoorCollisionMixin",
-        "client.ClientWallClimbingMixin",
-        "client.BlockRenderManagerMaskMixin",
-        "client.ItemRendererMaskMixin",
-        "client.ClientEntityPlayerDoorCollisionMixin"
+        "client.ClientWallClimbingMixin"
     ],
     "injectors": {
         "defaultRequire": 1
