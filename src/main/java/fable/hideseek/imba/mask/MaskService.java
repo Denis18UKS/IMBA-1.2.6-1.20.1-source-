@@ -40,9 +40,6 @@ public final class MaskService {
         player.setVelocity(Vec3d.ZERO);
         player.fallDistance = 0.0f;
         player.calculateDimensions();
-        // Force a position packet after the dimension reset. Without this the
-        // former hider could keep stale movement dimensions client-side until
-        // the first sneak toggle and fail to step onto slabs/stairs.
         player.requestTeleport(player.getX(), player.getY(), player.getZ());
 
         MaskNetworking.sendMaskReset(player);
@@ -80,10 +77,6 @@ public final class MaskService {
         MaskNetworking.sendStatueSync(player, false);
     }
 
-    /**
-     * Commands that apply a mask always start from one deterministic block.
-     * This removes half-block/edge positions before any later auto-attachment.
-     */
     private static void snapToSingleBlock(ServerPlayerEntity player) {
         double x = Math.floor(player.getX()) + 0.5D;
         double y = Math.floor(player.getY());
@@ -130,18 +123,16 @@ public final class MaskService {
         return item == ImbaMod.POTION_2D;
     }
 
-    /**
-     * Physical seeker collision is deliberately narrower than the mask hitbox.
-     * Only a true one-block cube behaves as world geometry. Thin and functional
-     * masks remain targetable, but never trap or push a seeker.
-     */
     public static boolean hasPhysicalCollision(MaskState state) {
         return state != null && hasPhysicalCollision(state.type, state.block);
     }
 
     public static boolean hasPhysicalCollision(MaskType type, Block block) {
-        if (type == MaskType.DOOR && block instanceof DoorBlock) {
-            return true;
+        // Player doors are handled by EntityPlayerDoorCollisionMixin and its
+        // client counterpart. Returning false here prevents the old seeker-only
+        // manual push solver from fighting vanilla movement collision.
+        if (type == MaskType.DOOR) {
+            return false;
         }
         if (type != MaskType.BLOCK || block == null) {
             return false;
