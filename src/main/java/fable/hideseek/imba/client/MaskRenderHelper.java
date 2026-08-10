@@ -22,7 +22,7 @@ import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import java.util.UUID;
 
@@ -31,7 +31,8 @@ public final class MaskRenderHelper {
     private MaskRenderHelper() {
     }
 
-    public static void renderMask(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers, int light) {
+    public static void renderMask(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers, int light,
+            World renderWorld, BlockPos renderPos) {
         if (!ClientMaskData.hasMask(uuid)) {
             return;
         }
@@ -61,7 +62,7 @@ public final class MaskRenderHelper {
                 applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
                 renderBlock(matrices, consumers, light, Blocks.NETHER_PORTAL.getDefaultState());
             }
-            case LADDER_REVERSED -> renderLadder(uuid, matrices, consumers, light, rotationY);
+            case LADDER_REVERSED -> renderLadder(matrices, consumers, light, rotationY, renderWorld, renderPos);
             case BUTTON -> renderButton(uuid, matrices, consumers, light, rotationY, buttonPressed);
             case SCULK_VEIN -> {
                 applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
@@ -100,7 +101,11 @@ public final class MaskRenderHelper {
                         matrices.pop();
                     } else {
                         applyCenteredRotation(matrices, rotationX, rotationY, rotationZ);
-                        renderBlock(matrices, consumers, light, renderState);
+                        if (block == ImbaMod.GLOWBERRIES) {
+                            renderWorldAwareBlock(matrices, consumers, light, renderState, renderWorld, renderPos);
+                        } else {
+                            renderBlock(matrices, consumers, light, renderState);
+                        }
                     }
                 }
             }
@@ -108,7 +113,8 @@ public final class MaskRenderHelper {
                 var item = ClientMaskData.ITEMS.get(uuid);
                 if (item != null) {
                     if (MaskService.isSpecialPotion(item)) {
-                        renderPotionStanding(uuid, matrices, consumers, light, new ItemStack(item), statue);
+                        renderPotionStanding(matrices, consumers, light, new ItemStack(item), statue,
+                                renderWorld, renderPos);
                     } else {
                         renderWallItem(
                                 matrices,
@@ -166,6 +172,23 @@ public final class MaskRenderHelper {
         matrices.pop();
     }
 
+    private static void renderWorldAwareBlock(MatrixStack matrices, VertexConsumerProvider consumers, int light,
+            BlockState state, World renderWorld, BlockPos renderPos) {
+        if (renderWorld == null || renderPos == null) {
+            renderBlock(matrices, consumers, light, state);
+            return;
+        }
+        VanillaMaskRenderContext.begin(
+                VanillaMaskRenderContext.Mode.WORLD_BLOCK,
+                renderWorld,
+                renderPos);
+        try {
+            renderBlock(matrices, consumers, light, state);
+        } finally {
+            VanillaMaskRenderContext.clear();
+        }
+    }
+
     private static void renderDoor(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers, int light,
             float rotationY, boolean open) {
         Block doorBlock = ClientMaskData.BLOCKS.get(uuid);
@@ -215,32 +238,17 @@ public final class MaskRenderHelper {
         renderBlock(matrices, consumers, light, state);
     }
 
-    private static void renderLadder(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers, int light,
-            float rotationY) {
+    private static void renderLadder(MatrixStack matrices, VertexConsumerProvider consumers, int light,
+            float rotationY, World renderWorld, BlockPos renderPos) {
         Direction facing = rotationToDirection(rotationY);
         BlockState state = Blocks.LADDER.getDefaultState()
                 .with(net.minecraft.block.LadderBlock.FACING, facing);
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
-        BlockPos renderPos = anchor != null
-                ? BlockPos.ofFloored(anchor.x, anchor.y, anchor.z)
-                : client.player != null ? client.player.getBlockPos() : BlockPos.ORIGIN;
 
         matrices.push();
         matrices.translate(0.5D, 0.5D, 0.5D);
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0f));
         matrices.translate(-0.5D, -0.5D, -0.5D);
-
-        VanillaMaskRenderContext.begin(
-                VanillaMaskRenderContext.Mode.WORLD_BLOCK,
-                client.world,
-                renderPos);
-        try {
-            renderBlock(matrices, consumers, light, state);
-        } finally {
-            VanillaMaskRenderContext.clear();
-        }
+        renderWorldAwareBlock(matrices, consumers, light, state, renderWorld, renderPos);
         matrices.pop();
     }
 
@@ -270,28 +278,25 @@ public final class MaskRenderHelper {
         matrices.pop();
     }
 
-    private static void renderPotionStanding(UUID uuid, MatrixStack matrices, VertexConsumerProvider consumers,
-            int light, ItemStack stack, boolean statue) {
+    private static void renderPotionStanding(MatrixStack matrices, VertexConsumerProvider consumers,
+            int light, ItemStack stack, boolean statue, World renderWorld, BlockPos renderPos) {
         MinecraftClient client = MinecraftClient.getInstance();
-        Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
-
-        BlockPos renderPos;
-        if (anchor != null) {
-            renderPos = BlockPos.ofFloored(anchor.x, anchor.y - (statue ? 0.75D : 0.5D), anchor.z);
-        } else if (client.player != null) {
-            renderPos = client.player.getBlockPos();
-        } else {
-            renderPos = BlockPos.ORIGIN;
-        }
 
         matrices.push();
         matrices.translate(0.5D, statue ? 0.15D : 0.24D, statue ? 0.53125D : 0.5D);
         matrices.scale(0.5f, 0.5f, 0.5f);
 
-        VanillaMaskRenderContext.begin(
-                VanillaMaskRenderContext.Mode.POTION_ITEM_AS_BLOCK,
-                client.world,
-                renderPos);
+        if (renderWorld != null && renderPos != null) {
+            /*
+             * renderPos is the air cell occupied by the visible potion, not
+             * the brewing-stand/support block below it. Sampling the support
+             * cell is what made statue mode darker than the real bottle.
+             */
+            VanillaMaskRenderContext.begin(
+                    VanillaMaskRenderContext.Mode.POTION_ITEM_AS_BLOCK,
+                    renderWorld,
+                    renderPos);
+        }
         try {
             client.getItemRenderer().renderItem(
                     stack,
@@ -300,7 +305,7 @@ public final class MaskRenderHelper {
                     OverlayTexture.DEFAULT_UV,
                     matrices,
                     consumers,
-                    client.world,
+                    renderWorld,
                     0);
         } finally {
             VanillaMaskRenderContext.clear();
