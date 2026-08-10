@@ -6,20 +6,22 @@ import fable.hideseek.imba.mask.MaskState;
 import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskType;
 import fable.hideseek.imba.net.MaskNetworking;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 public final class HideButtonHandler {
 
@@ -29,6 +31,22 @@ public final class HideButtonHandler {
     }
 
     public static void register() {
+        /*
+         * Right-clicking a block normally runs the block interaction before
+         * UseItemCallback. Handle the hide item here too, so an ordinary or
+         * interactive block can never swallow the "Скрыться" action.
+         */
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            ItemStack stack = player.getStackInHand(hand);
+            if (!(stack.getItem() instanceof HideItem)) {
+                return ActionResult.PASS;
+            }
+            if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
+                handle(serverPlayer);
+            }
+            return ActionResult.SUCCESS;
+        });
+
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
 
