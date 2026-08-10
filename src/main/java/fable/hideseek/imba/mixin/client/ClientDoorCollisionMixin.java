@@ -2,6 +2,7 @@ package fable.hideseek.imba.mixin.client;
 
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.mask.MaskHitbox;
+import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.EntityShapeContext;
@@ -17,17 +18,22 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(DoorBlock.class)
+@Mixin(AbstractBlock.AbstractBlockState.class)
 public abstract class ClientDoorCollisionMixin {
-    @Inject(method = "getCollisionShape", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getCollisionShape(Lnet/minecraft/world/BlockView;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/ShapeContext;)Lnet/minecraft/util/shape/VoxelShape;",
+            at = @At("HEAD"), cancellable = true)
     private void imba$allowOneBlockMaskThroughOpenDoorClient(
-            BlockState state, BlockView world, BlockPos pos, ShapeContext context,
+            BlockView world, BlockPos pos, ShapeContext context,
             CallbackInfoReturnable<VoxelShape> cir) {
-        if (!state.get(DoorBlock.OPEN) || !(context instanceof EntityShapeContext entityContext)) {
+        BlockState state = (BlockState) (Object) this;
+        if (!(state.getBlock() instanceof DoorBlock)
+                || !state.get(DoorBlock.OPEN)
+                || !(context instanceof EntityShapeContext entityContext)) {
             return;
         }
         Entity entity = entityContext.getEntity();
         if (!(entity instanceof PlayerEntity player)
+                || !player.getWorld().isClient
                 || !ClientMaskData.hasMask(player.getUuid())) {
             return;
         }
