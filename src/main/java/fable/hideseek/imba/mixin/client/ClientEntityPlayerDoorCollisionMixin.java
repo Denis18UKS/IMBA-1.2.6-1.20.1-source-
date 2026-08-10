@@ -5,6 +5,7 @@ import fable.hideseek.imba.mask.MaskCollisionShapes;
 import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
@@ -36,7 +37,10 @@ public abstract class ClientEntityPlayerDoorCollisionMixin {
         }
 
         Box swept = entityBoundingBox.stretch(movement).expand(1.0E-5D);
-        for (AbstractClientPlayerEntity masked : world.getPlayers()) {
+        for (PlayerEntity candidate : world.getPlayers()) {
+            if (!(candidate instanceof AbstractClientPlayerEntity masked)) {
+                continue;
+            }
             if (masked == movingEntity
                     || !ClientMaskData.hasMask(masked.getUuid())
                     || !ClientMaskData.isStatue(masked.getUuid())
