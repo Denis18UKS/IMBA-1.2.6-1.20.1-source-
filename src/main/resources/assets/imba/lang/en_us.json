@@ -27,5 +27,6 @@
     "block.imba.invisible_sign": "Невидимая декоративная табличка",
     "block.imba.water_mask": "Маска воды",
     "block.imba.lava_mask": "Маска лавы",
-    "block.imba.ladder_mask": "Маска лестницы"
+    "block.imba.ladder_mask": "Маска лестницы",
+    "item.imba.mask_block_config_tool": "Mask block configurator"
 }
