@@ -18,7 +18,8 @@
         "BedBlockMixin",
         "DoorCollisionMixin",
         "TntEntityMixin",
-        "MaskServiceGuardMixin"
+        "MaskServiceGuardMixin",
+        "EntityPlayerDoorCollisionMixin"
     ],
     "client": [
         "client.WorldRendererMixin",
@@ -34,7 +35,10 @@
         "client.PlayerEntityClientMixin",
         "client.MaskShadowMixin",
         "client.ClientDoorCollisionMixin",
-        "client.ClientWallClimbingMixin"
+        "client.ClientWallClimbingMixin",
+        "client.BlockRenderManagerMaskMixin",
+        "client.ItemRendererMaskMixin",
+        "client.ClientEntityPlayerDoorCollisionMixin"
     ],
     "injectors": {
         "defaultRequire": 1
