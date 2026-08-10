@@ -58,7 +58,10 @@ public class WorldRendererMixin {
 
         matrices.push();
         matrices.translate(playerX - cameraX, playerY - cameraY, playerZ - cameraZ);
-        MaskRenderHelper.renderMask(uuid, matrices, vertexConsumers, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+        int maskLight = WorldRenderer.getLightmapCoordinates(
+                client.world,
+                net.minecraft.util.math.BlockPos.ofFloored(playerX, playerY + 0.5D, playerZ));
+        MaskRenderHelper.renderMask(uuid, matrices, vertexConsumers, maskLight);
         matrices.pop();
 
         vertexConsumers.draw();
