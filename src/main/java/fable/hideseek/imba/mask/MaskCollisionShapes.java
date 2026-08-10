@@ -27,11 +27,18 @@ public final class MaskCollisionShapes {
     public static List<Box> create(MaskType type, net.minecraft.block.Block block,
             float rotation, boolean doorOpen, double x, double y, double z) {
         if (type == MaskType.DOOR && block instanceof DoorBlock door) {
+            // Keep the visual/player hitbox unchanged. Only seeker world-collision
+            // becomes a full two-block barrier while the player-door is closed,
+            // preventing sprint-speed tunnelling into the wall behind it.
+            if (!doorOpen) {
+                return List.of(new Box(x - 0.5D, y, z - 0.5D,
+                        x + 0.5D, y + 2.0D, z + 0.5D));
+            }
             Direction facing = Direction.fromHorizontal(Math.floorMod(Math.round(rotation / 90.0F), 4));
             BlockState lower = door.getDefaultState()
                     .with(DoorBlock.HALF, DoubleBlockHalf.LOWER)
                     .with(DoorBlock.FACING, facing)
-                    .with(DoorBlock.OPEN, doorOpen)
+                    .with(DoorBlock.OPEN, true)
                     .with(DoorBlock.HINGE, DoorHinge.LEFT);
             BlockState upper = lower.with(DoorBlock.HALF, DoubleBlockHalf.UPPER);
             return List.of(toWorldBox(lower, x, y, z), toWorldBox(upper, x, y + 1.0D, z));
