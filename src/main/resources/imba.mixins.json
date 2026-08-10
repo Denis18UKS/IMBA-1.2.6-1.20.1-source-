@@ -31,7 +31,8 @@
         "client.ClientPlayerLadderMixin",
         "client.PlayerEntityClientMixin",
         "client.MaskShadowMixin",
-        "client.ClientDoorCollisionMixin"
+        "client.ClientDoorCollisionMixin",
+        "client.ClientWallClimbingMixin"
     ],
     "injectors": {
         "defaultRequire": 1
