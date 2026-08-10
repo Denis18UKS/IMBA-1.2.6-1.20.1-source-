@@ -1,7 +1,7 @@
 package fable.hideseek.imba.mixin;
 
 import fable.hideseek.imba.game.GameConfig;
-import fable.hideseek.imba.game.GameManager;
+import fable.hideseek.imba.game.GameRoles;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,7 +20,7 @@ public class SeekerHealthMixin {
             return;
         }
 
-        double wantedHealth = GameManager.usesSeekerHealth(self)
+        double wantedHealth = GameRoles.isSeeker(self)
                 ? Math.max(1, GameConfig.SEEKER_HEARTS) * 2.0D
                 : 20.0D;
 
