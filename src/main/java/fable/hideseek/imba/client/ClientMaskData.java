@@ -30,7 +30,7 @@ public class ClientMaskData {
     public static void setMask(UUID uuid, MaskType type, Block block, Item item,
             float rotationY, float rotationX, float rotationZ,
             boolean doorOpen, boolean buttonPressed,
-            boolean wallAttached, boolean attachedToFrame,
+            boolean wallClimbing, boolean wallAttached, boolean attachedToFrame,
             Direction attachmentFacing, int frameRotationStep) {
         TYPES.put(uuid, type);
 
@@ -51,6 +51,7 @@ public class ClientMaskData {
         ROTATIONS_Z.put(uuid, rotationZ);
         DOOR_OPEN.put(uuid, doorOpen);
         BUTTON_PRESSED.put(uuid, buttonPressed);
+        WALL_CLIMBING.put(uuid, wallClimbing);
         WALL_ATTACHED.put(uuid, wallAttached);
         ATTACHED_TO_FRAME.put(uuid, attachedToFrame);
         ATTACHMENT_FACING.put(uuid, attachmentFacing == null ? Direction.NORTH : attachmentFacing);
@@ -125,6 +126,10 @@ public class ClientMaskData {
 
     public static boolean isButtonPressed(UUID uuid) {
         return BUTTON_PRESSED.getOrDefault(uuid, false);
+    }
+
+    public static boolean isWallClimbing(UUID uuid) {
+        return WALL_CLIMBING.getOrDefault(uuid, true);
     }
 
     public static boolean isWallAttached(UUID uuid) {
