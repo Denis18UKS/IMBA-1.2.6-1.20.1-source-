@@ -5,6 +5,8 @@ import fable.hideseek.imba.client.PanelData;
 import fable.hideseek.imba.mask.MaskType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.block.Block;
+import net.minecraft.entity.EntityPose;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
@@ -69,10 +71,7 @@ public final class MaskClientNetworking {
                         if (client.world != null) {
                             var maskedPlayer = client.world.getPlayerByUuid(uuid);
                             fable.hideseek.imba.client.ClientStatueLock.release(maskedPlayer);
-                            if (maskedPlayer != null) {
-                                maskedPlayer.setSneaking(false);
-                                maskedPlayer.calculateDimensions();
-                            }
+                            restoreStandingAfterMaskReset(maskedPlayer);
                         }
                     });
                 });
@@ -96,8 +95,17 @@ public final class MaskClientNetworking {
                                 fable.hideseek.imba.client.ClientStatueLock.apply(player);
                             } else {
                                 fable.hideseek.imba.client.ClientStatueLock.release(player);
+                                // MASK_RESET and STATUE_SYNC are separate packets. If the
+                                // reset has already cleared the mask, keep the client pose
+                                // explicitly vanilla-standing instead of allowing a stale
+                                // crouching/mask pose to survive until the next Shift press.
+                                if (!ClientMaskData.hasMask(uuid)) {
+                                    restoreStandingAfterMaskReset(player);
+                                } else if (player != null) {
+                                    player.calculateDimensions();
+                                }
                             }
-                            if (player != null) {
+                            if (statue && player != null) {
                                 player.calculateDimensions();
                             }
                         }
@@ -155,5 +163,16 @@ public final class MaskClientNetworking {
                         }
                     });
                 });
+    }
+
+    private static void restoreStandingAfterMaskReset(PlayerEntity player) {
+        if (player == null) {
+            return;
+        }
+        player.setNoGravity(false);
+        player.setSneaking(false);
+        player.setSwimming(false);
+        player.setPose(EntityPose.STANDING);
+        player.calculateDimensions();
     }
 }
