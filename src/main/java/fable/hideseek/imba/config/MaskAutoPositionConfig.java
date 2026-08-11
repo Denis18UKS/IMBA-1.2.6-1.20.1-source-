@@ -19,10 +19,14 @@ import java.util.Map;
  * mask block + support block below the player.
  *
  * Example:
- * minecraft:attached_pumpkin_stem + minecraft:farmland -> Y +2 px.
+ * minecraft:attached_pumpkin_stem + minecraft:farmland -> Y +1 px.
  *
- * The normal auto-positioning runs first. This config is only an additive
- * correction after that and never changes MaskHitbox/EntityDimensions.
+ * X/Z are corrections on top of the normal mask snap. For an explicitly
+ * configured pair Y is interpreted from the REAL top surface of the support
+ * block, not from floor(playerY). This is what lets a stem remain above
+ * farmland/slabs/stairs instead of being pulled into their block cell.
+ *
+ * This config never changes MaskHitbox/EntityDimensions.
  * Values are Minecraft model pixels: 16 px = 1 block.
  */
 public final class MaskAutoPositionConfig {
@@ -67,6 +71,23 @@ public final class MaskAutoPositionConfig {
         }
     }
 
+    public static boolean hasPair(Block maskBlock, Block supportBlock) {
+        if (maskBlock == null || supportBlock == null) {
+            return false;
+        }
+        Identifier maskId = Registries.BLOCK.getId(maskBlock);
+        Identifier supportId = Registries.BLOCK.getId(supportBlock);
+        return hasPair(maskId, supportId);
+    }
+
+    public static boolean hasPair(Identifier maskId, Identifier supportId) {
+        if (maskId == null || supportId == null) {
+            return false;
+        }
+        Map<String, Offset> supports = DATA.pairs.get(maskId.toString());
+        return supports != null && supports.containsKey(supportId.toString());
+    }
+
     public static Offset offsetFor(Block maskBlock, Block supportBlock) {
         if (maskBlock == null || supportBlock == null) {
             return Offset.ZERO;
@@ -78,13 +99,7 @@ public final class MaskAutoPositionConfig {
             return Offset.ZERO;
         }
 
-        Map<String, Offset> supports = DATA.pairs.get(maskId.toString());
-        if (supports == null) {
-            return Offset.ZERO;
-        }
-
-        Offset value = supports.get(supportId.toString());
-        return value == null ? Offset.ZERO : value.copy();
+        return offsetFor(maskId, supportId);
     }
 
     public static Offset offsetFor(Identifier maskId, Identifier supportId) {
