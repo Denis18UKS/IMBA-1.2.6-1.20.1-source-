@@ -83,6 +83,7 @@ public class ImbaClient implements ClientModInitializer {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            MaskClientNetworking.tickResetRecovery(client);
             ClientPhotoCapture.tick(client);
             ClientMaskCollision.tick(client);
             if (client.player != null) {
