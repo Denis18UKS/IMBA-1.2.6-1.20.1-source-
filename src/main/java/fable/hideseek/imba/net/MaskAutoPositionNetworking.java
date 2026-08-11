@@ -11,7 +11,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.Map;
 
-/** Server side for the per-block statue auto-position editor. */
+/** Server side for the mask + support block auto-position editor. */
 public final class MaskAutoPositionNetworking {
     public static final Identifier REQUEST = new Identifier("imba", "mask_autopos_request");
     public static final Identifier SET = new Identifier("imba", "mask_autopos_set");
@@ -34,7 +34,8 @@ public final class MaskAutoPositionNetworking {
 
         ServerPlayNetworking.registerGlobalReceiver(SET,
                 (server, player, handler, buf, responseSender) -> {
-                    String rawId = buf.readString(256);
+                    String rawMaskId = buf.readString(256);
+                    String rawSupportId = buf.readString(256);
                     int xPixels = buf.readInt();
                     int yPixels = buf.readInt();
                     int zPixels = buf.readInt();
@@ -46,23 +47,28 @@ public final class MaskAutoPositionNetworking {
                             return;
                         }
 
-                        Identifier id = Identifier.tryParse(rawId);
-                        if (id == null || !Registries.BLOCK.containsId(id)) {
-                            player.sendMessage(Text.literal("§cНеизвестный блок: §f" + rawId), true);
+                        Identifier maskId = Identifier.tryParse(rawMaskId);
+                        Identifier supportId = Identifier.tryParse(rawSupportId);
+                        if (maskId == null || !Registries.BLOCK.containsId(maskId)) {
+                            player.sendMessage(Text.literal("§cНеизвестная маска-блок: §f" + rawMaskId), true);
+                            return;
+                        }
+                        if (supportId == null || !Registries.BLOCK.containsId(supportId)) {
+                            player.sendMessage(Text.literal("§cНеизвестный опорный блок: §f" + rawSupportId), true);
                             return;
                         }
 
-                        MaskAutoPositionConfig.setOffset(id, xPixels, yPixels, zPixels);
+                        MaskAutoPositionConfig.setOffset(maskId, supportId, xPixels, yPixels, zPixels);
                         sendSync(player);
 
-                        MaskAutoPositionConfig.Offset value =
-                                MaskAutoPositionConfig.offsetFor(Registries.BLOCK.get(id));
+                        MaskAutoPositionConfig.Offset value = MaskAutoPositionConfig.offsetFor(maskId, supportId);
+                        String pair = maskId + " + " + supportId;
                         if (value.isZero()) {
                             player.sendMessage(Text.literal(
-                                    "§aИндивидуальная автопозиция сброшена: §f" + id), true);
+                                    "§aИндивидуальная автопозиция сброшена: §f" + pair), true);
                         } else {
                             player.sendMessage(Text.literal(
-                                    "§aАвтопозиция §f" + id
+                                    "§aАвтопозиция §f" + pair
                                             + " §7→ X " + signed(value.xPixels)
                                             + " px, Y " + signed(value.yPixels)
                                             + " px, Z " + signed(value.zPixels) + " px"), true);
@@ -72,15 +78,23 @@ public final class MaskAutoPositionNetworking {
     }
 
     public static void sendSync(ServerPlayerEntity player) {
-        Map<String, MaskAutoPositionConfig.Offset> values = MaskAutoPositionConfig.snapshot();
+        Map<String, Map<String, MaskAutoPositionConfig.Offset>> values = MaskAutoPositionConfig.snapshot();
+        int count = 0;
+        for (Map<String, MaskAutoPositionConfig.Offset> supports : values.values()) {
+            count += supports.size();
+        }
+
         PacketByteBuf out = PacketByteBufs.create();
-        out.writeVarInt(values.size());
-        for (Map.Entry<String, MaskAutoPositionConfig.Offset> entry : values.entrySet()) {
-            out.writeString(entry.getKey(), 256);
-            MaskAutoPositionConfig.Offset offset = entry.getValue();
-            out.writeInt(offset.xPixels);
-            out.writeInt(offset.yPixels);
-            out.writeInt(offset.zPixels);
+        out.writeVarInt(count);
+        for (Map.Entry<String, Map<String, MaskAutoPositionConfig.Offset>> maskEntry : values.entrySet()) {
+            for (Map.Entry<String, MaskAutoPositionConfig.Offset> supportEntry : maskEntry.getValue().entrySet()) {
+                out.writeString(maskEntry.getKey(), 256);
+                out.writeString(supportEntry.getKey(), 256);
+                MaskAutoPositionConfig.Offset offset = supportEntry.getValue();
+                out.writeInt(offset.xPixels);
+                out.writeInt(offset.yPixels);
+                out.writeInt(offset.zPixels);
+            }
         }
         ServerPlayNetworking.send(player, SYNC, out);
     }
