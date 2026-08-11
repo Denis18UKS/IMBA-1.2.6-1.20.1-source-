@@ -23,181 +23,427 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/** GUI for configuring an exact mask-block + support-block statue offset. */
 public final class MaskAutoPositionScreen extends Screen {
-    private static final int ROW_HEIGHT = 24;
+    private static final int ROW_HEIGHT = 22;
     private static final int BUTTON_SIZE = 18;
+
     private final List<BlockEntry> allBlocks = new ArrayList<>();
-    private final List<BlockEntry> filtered = new ArrayList<>();
-    private final Map<String, MaskAutoPositionConfig.Offset> offsets = new HashMap<>();
-    private TextFieldWidget searchField;
-    private int scroll;
+    private final List<BlockEntry> filteredMasks = new ArrayList<>();
+    private final List<BlockEntry> filteredSupports = new ArrayList<>();
+    private final Map<String, Map<String, MaskAutoPositionConfig.Offset>> offsets = new HashMap<>();
+
+    private TextFieldWidget maskSearchField;
+    private TextFieldWidget supportSearchField;
+    private int maskScroll;
+    private int supportScroll;
     private boolean synced;
-    private BlockEntry selected;
+    private BlockEntry selectedMask;
+    private BlockEntry selectedSupport;
 
     public MaskAutoPositionScreen() {
-        super(Text.literal("Индивидуальная автопозиция масок"));
+        super(Text.literal("Автопозиция: маска + блок под ней"));
         for (Block block : Registries.BLOCK) {
             Identifier id = Registries.BLOCK.getId(block);
-            if (id != null) allBlocks.add(new BlockEntry(block, id));
+            if (id != null) {
+                allBlocks.add(new BlockEntry(block, id));
+            }
         }
         allBlocks.sort(Comparator.comparing(entry -> entry.id.toString()));
-        filtered.addAll(allBlocks);
+        filteredMasks.addAll(allBlocks);
+        filteredSupports.addAll(allBlocks);
     }
 
     @Override
     protected void init() {
-        int panelWidth = Math.min(600, width - 24);
-        int left = (width - panelWidth) / 2;
-        searchField = new TextFieldWidget(textRenderer, left + 12, 36, panelWidth - 24, 20,
-                Text.literal("Поиск блока"));
-        searchField.setPlaceholder(Text.literal("Поиск по названию или ID..."));
-        searchField.setMaxLength(128);
-        searchField.setChangedListener(value -> { rebuildFilter(); scroll = 0; });
-        addDrawableChild(searchField);
+        int left = panelLeft();
+        int columnWidth = columnWidth();
+
+        maskSearchField = new TextFieldWidget(textRenderer, left + 12, 38, columnWidth - 18, 20,
+                Text.literal("Поиск маски"));
+        maskSearchField.setPlaceholder(Text.literal("Маска: название или ID..."));
+        maskSearchField.setMaxLength(128);
+        maskSearchField.setChangedListener(value -> {
+            rebuildMasks();
+            maskScroll = 0;
+        });
+        addDrawableChild(maskSearchField);
+
+        supportSearchField = new TextFieldWidget(textRenderer, left + columnWidth + 6, 38,
+                columnWidth - 18, 20, Text.literal("Поиск опоры"));
+        supportSearchField.setPlaceholder(Text.literal("Блок под маской: название или ID..."));
+        supportSearchField.setMaxLength(128);
+        supportSearchField.setChangedListener(value -> {
+            rebuildSupports();
+            supportScroll = 0;
+        });
+        addDrawableChild(supportSearchField);
+
         addDrawableChild(ButtonWidget.builder(Text.literal("Закрыть"), button -> close())
-                .dimensions(width / 2 - 55, height - 27, 110, 20).build());
+                .dimensions(width / 2 - 55, height - 27, 110, 20)
+                .build());
+
         ClientPlayNetworking.send(MaskAutoPositionNetworking.REQUEST, PacketByteBufs.create());
     }
 
-    public void applyServerState(Map<String, MaskAutoPositionConfig.Offset> values) {
+    public void applyServerState(Map<String, Map<String, MaskAutoPositionConfig.Offset>> values) {
         offsets.clear();
-        values.forEach((id, offset) -> offsets.put(id, offset.copy()));
+        values.forEach((maskId, supports) -> {
+            Map<String, MaskAutoPositionConfig.Offset> supportCopy = new HashMap<>();
+            supports.forEach((supportId, offset) -> supportCopy.put(supportId, offset.copy()));
+            offsets.put(maskId, supportCopy);
+        });
         synced = true;
     }
 
-    private void rebuildFilter() {
-        String needle = searchField == null ? "" : searchField.getText().trim().toLowerCase(Locale.ROOT);
-        filtered.clear();
-        for (BlockEntry entry : allBlocks) {
-            if (needle.isEmpty() || entry.id.toString().toLowerCase(Locale.ROOT).contains(needle)
-                    || entry.block.getName().getString().toLowerCase(Locale.ROOT).contains(needle)) filtered.add(entry);
-        }
-        clampScroll();
+    private void rebuildMasks() {
+        rebuild(maskSearchField, filteredMasks);
+        clampMaskScroll();
     }
 
-    private int panelWidth() { return Math.min(600, width - 24); }
-    private int panelLeft() { return (width - panelWidth()) / 2; }
-    private int listTop() { return 66; }
-    private int editorTop() { return Math.max(132, height - 100); }
-    private int listBottom() { return editorTop() - 6; }
-    private int visibleRows() { return Math.max(1, (listBottom() - listTop()) / ROW_HEIGHT); }
-    private void clampScroll() { scroll = MathHelper.clamp(scroll, 0, Math.max(0, filtered.size() - visibleRows())); }
+    private void rebuildSupports() {
+        rebuild(supportSearchField, filteredSupports);
+        clampSupportScroll();
+    }
+
+    private void rebuild(TextFieldWidget field, List<BlockEntry> target) {
+        String needle = field == null ? "" : field.getText().trim().toLowerCase(Locale.ROOT);
+        target.clear();
+        for (BlockEntry entry : allBlocks) {
+            String id = entry.id.toString().toLowerCase(Locale.ROOT);
+            String name = entry.block.getName().getString().toLowerCase(Locale.ROOT);
+            if (needle.isEmpty() || id.contains(needle) || name.contains(needle)) {
+                target.add(entry);
+            }
+        }
+    }
+
+    private int panelWidth() {
+        return Math.min(760, width - 20);
+    }
+
+    private int panelLeft() {
+        return (width - panelWidth()) / 2;
+    }
+
+    private int columnWidth() {
+        return panelWidth() / 2;
+    }
+
+    private int listTop() {
+        return 72;
+    }
+
+    private int editorTop() {
+        return Math.max(168, height - 104);
+    }
+
+    private int listBottom() {
+        return editorTop() - 7;
+    }
+
+    private int visibleRows() {
+        return Math.max(1, (listBottom() - listTop()) / ROW_HEIGHT);
+    }
+
+    private void clampMaskScroll() {
+        maskScroll = MathHelper.clamp(maskScroll, 0, Math.max(0, filteredMasks.size() - visibleRows()));
+    }
+
+    private void clampSupportScroll() {
+        supportScroll = MathHelper.clamp(supportScroll, 0, Math.max(0, filteredSupports.size() - visibleRows()));
+    }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context);
-        int left = panelLeft(), right = left + panelWidth(), top = 10, bottom = height - 33;
+
+        int left = panelLeft();
+        int right = left + panelWidth();
+        int top = 6;
+        int bottom = height - 33;
+        int middle = left + columnWidth();
+
         context.fill(left, top, right, bottom, 0xDD181818);
-        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 17, 0xFFFFFF);
+        context.fill(left, top, right, top + 1, 0xFF777777);
+        context.fill(left, bottom - 1, right, bottom, 0xFF777777);
+        context.fill(left, top, left + 1, bottom, 0xFF777777);
+        context.fill(right - 1, top, right, bottom, 0xFF777777);
+
+        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 11, 0xFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
-                synced ? "1 px = 1/16 блока. Без настройки работает обычная автопозиция."
-                       : "Получение конфигурации с сервера...",
-                width / 2, 59, synced ? 0xAAAAAA : 0xFFFF55);
-        renderList(context, mouseX, mouseY, left, right);
-        renderEditor(context, mouseX, mouseY, left, right);
+                synced
+                        ? "Выбери маску и блок под ней. 1 px = 1/16 блока. Поправка применяется после обычного снапа."
+                        : "Получение конфигурации с сервера...",
+                width / 2, 24, synced ? 0xAAAAAA : 0xFFFF55);
+
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("МАСКА /imba_mask"),
+                left + columnWidth() / 2, 61, 0xFFFF55);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("БЛОК ПОД МАСКОЙ"),
+                middle + columnWidth() / 2, 61, 0x55FFFF);
+        context.fill(middle, 61, middle + 1, listBottom(), 0x66555555);
+
+        renderList(context, mouseX, mouseY, true, left + 8, middle - 5);
+        renderList(context, mouseX, mouseY, false, middle + 5, right - 8);
+        renderEditor(context, left, right);
+
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void renderList(DrawContext context, int mouseX, int mouseY, int left, int right) {
-        clampScroll();
-        int rowLeft = left + 12, rowRight = right - 12, y = listTop();
+    private void renderList(DrawContext context, int mouseX, int mouseY,
+            boolean maskList, int rowLeft, int rowRight) {
+        if (maskList) {
+            clampMaskScroll();
+        } else {
+            clampSupportScroll();
+        }
+
+        List<BlockEntry> source = maskList ? filteredMasks : filteredSupports;
+        int scroll = maskList ? maskScroll : supportScroll;
+        BlockEntry selected = maskList ? selectedMask : selectedSupport;
+        int y = listTop();
+
         for (int row = 0; row < visibleRows(); row++) {
             int index = scroll + row;
-            if (index >= filtered.size()) break;
-            BlockEntry entry = filtered.get(index);
-            MaskAutoPositionConfig.Offset value = offsets.getOrDefault(entry.id.toString(), MaskAutoPositionConfig.Offset.ZERO);
-            int bg = selected != null && selected.id.equals(entry.id) ? 0x88705020 : ((index & 1) == 0 ? 0x55303030 : 0x55404040);
-            if (mouseX >= rowLeft && mouseX < rowRight && mouseY >= y && mouseY < y + 21) bg = 0x77606060;
-            context.fill(rowLeft, y, rowRight, y + 21, bg);
+            if (index >= source.size()) {
+                break;
+            }
+
+            BlockEntry entry = source.get(index);
+            boolean isSelected = selected != null && selected.id.equals(entry.id);
+            int bg = isSelected ? 0x88705020 : ((index & 1) == 0 ? 0x55303030 : 0x55404040);
+            if (mouseX >= rowLeft && mouseX < rowRight && mouseY >= y && mouseY < y + 20) {
+                bg = 0x77606060;
+            }
+            context.fill(rowLeft, y, rowRight, y + 20, bg);
+
             ItemStack icon = new ItemStack(entry.block.asItem());
-            if (!icon.isEmpty()) context.drawItem(icon, rowLeft + 2, y + 2);
-            context.drawTextWithShadow(textRenderer, entry.block.getName().getString(), rowLeft + 22, y + 2, 0xFFFFFF);
-            context.drawTextWithShadow(textRenderer, entry.id.toString(), rowLeft + 22, y + 11, 0x888888);
-            String v = value.isZero() ? "обычная" : "X " + signed(value.xPixels) + " Y " + signed(value.yPixels) + " Z " + signed(value.zPixels) + " px";
-            context.drawTextWithShadow(textRenderer, v, rowRight - textRenderer.getWidth(v) - 5, y + 7, value.isZero() ? 0x999999 : 0xAAFFAA);
+            if (!icon.isEmpty()) {
+                context.drawItem(icon, rowLeft + 2, y + 2);
+            }
+
+            int textX = rowLeft + 22;
+            int available = Math.max(30, rowRight - textX - 5);
+            context.drawTextWithShadow(textRenderer,
+                    trim(entry.block.getName().getString(), available), textX, y + 2, 0xFFFFFF);
+            context.drawTextWithShadow(textRenderer,
+                    trim(entry.id.toString(), available), textX, y + 11, 0x888888);
+
+            if (!maskList && selectedMask != null) {
+                MaskAutoPositionConfig.Offset value = getOffset(selectedMask.id, entry.id);
+                if (!value.isZero()) {
+                    String marker = signed(value.yPixels) + "Y";
+                    context.drawTextWithShadow(textRenderer, marker,
+                            rowRight - textRenderer.getWidth(marker) - 4, y + 2, 0xAAFFAA);
+                }
+            }
             y += ROW_HEIGHT;
         }
     }
 
-    private void renderEditor(DrawContext context, int mouseX, int mouseY, int left, int right) {
+    private void renderEditor(DrawContext context, int left, int right) {
         int top = editorTop();
-        context.fill(left + 12, top, right - 12, top + 62, 0x77252525);
-        if (selected == null) {
-            context.drawCenteredTextWithShadow(textRenderer, Text.literal("Выберите блок в списке"), width / 2, top + 25, 0xAAAAAA);
+        context.fill(left + 8, top, right - 8, top + 68, 0x77252525);
+
+        if (selectedMask == null || selectedSupport == null) {
+            context.drawCenteredTextWithShadow(textRenderer,
+                    Text.literal("Выбери слева маску, справа блок, на котором она стоит"),
+                    width / 2, top + 27, 0xAAAAAA);
             return;
         }
-        MaskAutoPositionConfig.Offset value = offsets.getOrDefault(selected.id.toString(), MaskAutoPositionConfig.Offset.ZERO);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(selected.block.getName().getString() + " (" + selected.id + ")"), width / 2, top + 5, 0xFFFFFF);
-        int groupWidth = 128, gap = 8, total = groupWidth * 3 + gap * 2, start = width / 2 - total / 2, y = top + 22;
-        drawAxis(context, "X", value.xPixels, start, y, mouseX, mouseY);
-        drawAxis(context, "Y", value.yPixels, start + groupWidth + gap, y, mouseX, mouseY);
-        drawAxis(context, "Z", value.zPixels, start + (groupWidth + gap) * 2, y, mouseX, mouseY);
-        int resetWidth = 130, resetLeft = width / 2 - resetWidth / 2, resetTop = top + 43;
-        context.fill(resetLeft, resetTop, resetLeft + resetWidth, resetTop + 16, 0x88603028);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Сбросить для блока"), width / 2, resetTop + 4, 0xFFFFFF);
+
+        MaskAutoPositionConfig.Offset value = getOffset(selectedMask.id, selectedSupport.id);
+        String pair = selectedMask.id + "  +  " + selectedSupport.id;
+        context.drawCenteredTextWithShadow(textRenderer,
+                Text.literal(trim(pair, panelWidth() - 40)), width / 2, top + 5, 0xFFFFFF);
+
+        int groupWidth = 116;
+        int gap = 8;
+        int total = groupWidth * 3 + gap * 2;
+        int start = width / 2 - total / 2;
+        int y = top + 23;
+        drawAxis(context, "X", value.xPixels, start, y);
+        drawAxis(context, "Y", value.yPixels, start + groupWidth + gap, y);
+        drawAxis(context, "Z", value.zPixels, start + (groupWidth + gap) * 2, y);
+
+        int resetWidth = 170;
+        int resetLeft = width / 2 - resetWidth / 2;
+        int resetTop = top + 46;
+        context.fill(resetLeft, resetTop, resetLeft + resetWidth, resetTop + 17, 0x88603028);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Сбросить эту комбинацию"),
+                width / 2, resetTop + 4, 0xFFFFFF);
     }
 
-    private void drawAxis(DrawContext context, String axis, int value, int x, int y, int mouseX, int mouseY) {
+    private void drawAxis(DrawContext context, String axis, int value, int x, int y) {
         context.drawTextWithShadow(textRenderer, axis + ":", x, y + 5, 0xFFFFFF);
         drawSmallButton(context, x + 18, y, "−");
         drawSmallButton(context, x + 88, y, "+");
-        context.drawCenteredTextWithShadow(textRenderer, signed(value) + " px", x + 67, y + 5, 0xFFFF55);
+        context.drawCenteredTextWithShadow(textRenderer, signed(value) + " px",
+                x + 64, y + 5, 0xFFFF55);
     }
 
     private void drawSmallButton(DrawContext context, int x, int y, String text) {
         context.fill(x, y, x + BUTTON_SIZE, y + BUTTON_SIZE, 0x88606060);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal(text), x + BUTTON_SIZE / 2, y + 5, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(text),
+                x + BUTTON_SIZE / 2, y + 5, 0xFFFFFF);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) return true;
-        if (button != 0 || !synced) return false;
-        int left = panelLeft(), rowLeft = left + 12, rowRight = left + panelWidth() - 12;
-        if (mouseX >= rowLeft && mouseX < rowRight && mouseY >= listTop() && mouseY < listBottom()) {
-            int index = scroll + (int)((mouseY - listTop()) / ROW_HEIGHT);
-            if (index >= 0 && index < filtered.size()) { selected = filtered.get(index); return true; }
+        if (super.mouseClicked(mouseX, mouseY, button)) {
+            return true;
         }
-        if (selected == null) return false;
-        MaskAutoPositionConfig.Offset old = offsets.getOrDefault(selected.id.toString(), MaskAutoPositionConfig.Offset.ZERO);
-        int xVal = old.xPixels, yVal = old.yPixels, zVal = old.zPixels;
-        int groupWidth = 128, gap = 8, total = groupWidth * 3 + gap * 2, start = width / 2 - total / 2, cy = editorTop() + 22;
+        if (button != 0 || !synced) {
+            return false;
+        }
+
+        int left = panelLeft();
+        int middle = left + columnWidth();
+        int right = left + panelWidth();
+
+        if (mouseY >= listTop() && mouseY < listBottom()) {
+            if (mouseX >= left + 8 && mouseX < middle - 5) {
+                int index = maskScroll + (int) ((mouseY - listTop()) / ROW_HEIGHT);
+                if (index >= 0 && index < filteredMasks.size()) {
+                    selectedMask = filteredMasks.get(index);
+                    return true;
+                }
+            }
+            if (mouseX >= middle + 5 && mouseX < right - 8) {
+                int index = supportScroll + (int) ((mouseY - listTop()) / ROW_HEIGHT);
+                if (index >= 0 && index < filteredSupports.size()) {
+                    selectedSupport = filteredSupports.get(index);
+                    return true;
+                }
+            }
+        }
+
+        if (selectedMask == null || selectedSupport == null) {
+            return false;
+        }
+
+        MaskAutoPositionConfig.Offset old = getOffset(selectedMask.id, selectedSupport.id);
+        int xVal = old.xPixels;
+        int yVal = old.yPixels;
+        int zVal = old.zPixels;
+        int groupWidth = 116;
+        int gap = 8;
+        int total = groupWidth * 3 + gap * 2;
+        int start = width / 2 - total / 2;
+        int cy = editorTop() + 23;
+
         for (int i = 0; i < 3; i++) {
             int sx = start + i * (groupWidth + gap);
             if (inside(mouseX, mouseY, sx + 18, cy, BUTTON_SIZE, BUTTON_SIZE)) {
-                if (i == 0) xVal--; else if (i == 1) yVal--; else zVal--;
-                send(xVal, yVal, zVal); return true;
+                if (i == 0) xVal--;
+                else if (i == 1) yVal--;
+                else zVal--;
+                send(xVal, yVal, zVal);
+                return true;
             }
             if (inside(mouseX, mouseY, sx + 88, cy, BUTTON_SIZE, BUTTON_SIZE)) {
-                if (i == 0) xVal++; else if (i == 1) yVal++; else zVal++;
-                send(xVal, yVal, zVal); return true;
+                if (i == 0) xVal++;
+                else if (i == 1) yVal++;
+                else zVal++;
+                send(xVal, yVal, zVal);
+                return true;
             }
         }
-        int rw = 130, rl = width / 2 - rw / 2, rt = editorTop() + 43;
-        if (inside(mouseX, mouseY, rl, rt, rw, 16)) { send(0, 0, 0); return true; }
+
+        int resetWidth = 170;
+        int resetLeft = width / 2 - resetWidth / 2;
+        int resetTop = editorTop() + 46;
+        if (inside(mouseX, mouseY, resetLeft, resetTop, resetWidth, 17)) {
+            send(0, 0, 0);
+            return true;
+        }
         return false;
     }
 
     private void send(int x, int y, int z) {
+        if (selectedMask == null || selectedSupport == null) {
+            return;
+        }
+
         x = MathHelper.clamp(x, -MaskAutoPositionConfig.MAX_ABS_PIXELS, MaskAutoPositionConfig.MAX_ABS_PIXELS);
         y = MathHelper.clamp(y, -MaskAutoPositionConfig.MAX_ABS_PIXELS, MaskAutoPositionConfig.MAX_ABS_PIXELS);
         z = MathHelper.clamp(z, -MaskAutoPositionConfig.MAX_ABS_PIXELS, MaskAutoPositionConfig.MAX_ABS_PIXELS);
-        String id = selected.id.toString();
-        if (x == 0 && y == 0 && z == 0) offsets.remove(id); else offsets.put(id, new MaskAutoPositionConfig.Offset(x, y, z));
+
+        String maskId = selectedMask.id.toString();
+        String supportId = selectedSupport.id.toString();
+        if (x == 0 && y == 0 && z == 0) {
+            Map<String, MaskAutoPositionConfig.Offset> supports = offsets.get(maskId);
+            if (supports != null) {
+                supports.remove(supportId);
+                if (supports.isEmpty()) {
+                    offsets.remove(maskId);
+                }
+            }
+        } else {
+            offsets.computeIfAbsent(maskId, ignored -> new HashMap<>())
+                    .put(supportId, new MaskAutoPositionConfig.Offset(x, y, z));
+        }
+
         PacketByteBuf out = PacketByteBufs.create();
-        out.writeString(id, 256); out.writeInt(x); out.writeInt(y); out.writeInt(z);
+        out.writeString(maskId, 256);
+        out.writeString(supportId, 256);
+        out.writeInt(x);
+        out.writeInt(y);
+        out.writeInt(z);
         ClientPlayNetworking.send(MaskAutoPositionNetworking.SET, out);
     }
 
-    private boolean inside(double mx, double my, int x, int y, int w, int h) { return mx >= x && mx < x + w && my >= y && my < y + h; }
-    private String signed(int v) { return v >= 0 ? "+" + v : Integer.toString(v); }
+    private MaskAutoPositionConfig.Offset getOffset(Identifier maskId, Identifier supportId) {
+        Map<String, MaskAutoPositionConfig.Offset> supports = offsets.get(maskId.toString());
+        if (supports == null) {
+            return MaskAutoPositionConfig.Offset.ZERO;
+        }
+        return supports.getOrDefault(supportId.toString(), MaskAutoPositionConfig.Offset.ZERO);
+    }
+
+    private boolean inside(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    private String trim(String value, int maxWidth) {
+        if (textRenderer.getWidth(value) <= maxWidth) {
+            return value;
+        }
+        String suffix = "…";
+        String result = value;
+        while (!result.isEmpty() && textRenderer.getWidth(result + suffix) > maxWidth) {
+            result = result.substring(0, result.length() - 1);
+        }
+        return result + suffix;
+    }
+
+    private String signed(int value) {
+        return value >= 0 ? "+" + value : Integer.toString(value);
+    }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (amount != 0.0D) { scroll -= (int)Math.signum(amount) * 3; clampScroll(); return true; }
-        return super.mouseScrolled(mouseX, mouseY, amount);
+        if (amount == 0.0D) {
+            return super.mouseScrolled(mouseX, mouseY, amount);
+        }
+
+        int middle = panelLeft() + columnWidth();
+        int delta = (int) Math.signum(amount) * 3;
+        if (mouseX < middle) {
+            maskScroll -= delta;
+            clampMaskScroll();
+        } else {
+            supportScroll -= delta;
+            clampSupportScroll();
+        }
+        return true;
     }
 
-    @Override public boolean shouldPause() { return false; }
-    private record BlockEntry(Block block, Identifier id) {}
+    @Override
+    public boolean shouldPause() {
+        return false;
+    }
+
+    private record BlockEntry(Block block, Identifier id) {
+    }
 }
