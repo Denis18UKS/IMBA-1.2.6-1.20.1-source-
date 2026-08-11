@@ -8,8 +8,8 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.ButtonBlock;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.LadderBlock;
-import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -18,7 +18,14 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.EmptyBlockView;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public final class MaskService {
+
+    private static final int RESET_RECOVERY_PASSES = 2;
+    private static final Map<UUID, Integer> RESET_RECOVERY = new HashMap<>();
 
     private MaskService() {
     }
@@ -32,12 +39,14 @@ public final class MaskService {
     }
 
     public static void resetMask(ServerPlayerEntity player) {
+        UUID uuid = player.getUuid();
+
         /*
-         * Reset the mask state BEFORE recalculating dimensions so the
-         * PlayerEntityMixin stops returning mask dimensions immediately.
+         * Remove mask state first. From this point getDimensions(STANDING)
+         * returns Minecraft's real player dimensions rather than MaskHitbox.
          */
-        MaskState.disableStatue(player.getUuid());
-        MaskState.reset(player.getUuid());
+        MaskState.disableStatue(uuid);
+        MaskState.reset(uuid);
 
         double x = player.getX();
         double y = player.getY();
@@ -49,33 +58,65 @@ public final class MaskService {
         player.fallDistance = 0.0f;
 
         /*
-         * setSneaking(false) only clears the sneaking input flag. Minecraft
-         * keeps the actual tracked EntityPose separately, and that stale pose
-         * can keep the physical bounding box in the mask/crouching state until
-         * the player presses Shift once. Force the vanilla standing state now
-         * and recalculate the real player bounding box immediately.
+         * A manual Shift press fixed the bug because it performs a real pose
+         * transition and causes Minecraft to rebuild its cached collision box.
+         * Reproduce that transition and explicitly reinstall the vanilla
+         * STANDING bounding box. Dimensions are obtained from Minecraft itself;
+         * no 0.6x1.8 values are hard-coded here.
          */
-        player.setSneaking(false);
-        player.setSwimming(false);
-        player.setPose(EntityPose.STANDING);
-        player.calculateDimensions();
+        MaskResetGeometry.forceStanding(player);
 
         /*
-         * Keep the same world position, but make the server send a position
-         * refresh together with the pose/dimension change. Recalculate once
-         * more after the teleport so movement collision uses the new box in
-         * the exact final position during this same tick.
+         * Keep the same world position and force geometry again after the
+         * position refresh. Some ServerPlayer movement state is refreshed by
+         * the teleport path, so doing both passes in this order prevents the
+         * old mask box from surviving until the next manual crouch.
          */
         player.requestTeleport(x, y, z);
-        player.setPose(EntityPose.STANDING);
-        player.calculateDimensions();
+        MaskResetGeometry.forceStanding(player);
+
+        /*
+         * Also repeat the physical-box restore on the next couple of server
+         * ticks. This protects against a later vanilla/network update in the
+         * reset tick restoring cached pre-reset dimensions.
+         */
+        RESET_RECOVERY.put(uuid, RESET_RECOVERY_PASSES);
 
         MaskNetworking.sendMaskReset(player);
         MaskNetworking.sendStatueSync(player, false);
     }
 
+    /** Called from PlayerEntityMixin on the logical server. */
+    public static void tickResetRecovery(PlayerEntity player) {
+        if (player == null || player.getWorld().isClient) {
+            return;
+        }
+
+        UUID uuid = player.getUuid();
+        Integer remaining = RESET_RECOVERY.get(uuid);
+        if (remaining == null) {
+            return;
+        }
+
+        // If another mask was equipped immediately, never overwrite its box.
+        if (MaskState.hasMask(uuid)) {
+            RESET_RECOVERY.remove(uuid);
+            return;
+        }
+
+        MaskResetGeometry.forceStanding(player);
+        if (remaining <= 1) {
+            RESET_RECOVERY.remove(uuid);
+        } else {
+            RESET_RECOVERY.put(uuid, remaining - 1);
+        }
+    }
+
     private static void applyMask(ServerPlayerEntity player, MaskType type, Block block, Item item) {
-        MaskState state = MaskState.get(player.getUuid());
+        UUID uuid = player.getUuid();
+        RESET_RECOVERY.remove(uuid);
+
+        MaskState state = MaskState.get(uuid);
 
         state.type = type;
         state.block = block;
@@ -96,7 +137,7 @@ public final class MaskService {
         state.attachmentFacing = Direction.NORTH;
         state.frameRotationStep = 0;
 
-        MaskState.disableStatue(player.getUuid());
+        MaskState.disableStatue(uuid);
 
         snapToSingleBlock(player);
         player.calculateDimensions();
@@ -156,9 +197,6 @@ public final class MaskService {
     }
 
     public static boolean hasPhysicalCollision(MaskType type, Block block) {
-        // Player doors are handled by EntityPlayerDoorCollisionMixin and its
-        // client counterpart. Returning false here prevents the old seeker-only
-        // manual push solver from fighting vanilla movement collision.
         if (type == MaskType.DOOR) {
             return false;
         }
