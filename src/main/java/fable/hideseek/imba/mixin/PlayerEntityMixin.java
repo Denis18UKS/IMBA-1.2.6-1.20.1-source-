@@ -47,6 +47,12 @@ public abstract class PlayerEntityMixin {
         if (self.getWorld().isClient) {
             return;
         }
+
+        // A reset schedules two extra server-side geometry passes. They are
+        // executed before the ordinary no-mask early return so a stale physical
+        // bounding box cannot survive the reset tick and wait for manual Shift.
+        MaskService.tickResetRecovery(self);
+
         if (!MaskState.hasMask(self.getUuid())) {
             self.setNoGravity(false);
             return;
