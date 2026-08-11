@@ -29,5 +29,5 @@
     "block.imba.lava_mask": "Маска лавы",
     "block.imba.ladder_mask": "Маска лестницы",
     "item.imba.mask_block_config_tool": "Настройщик блоков масок",
-    "item.imba.mask_autoposition_tool": "Точная автопозиция масок"
+    "item.imba.mask_autoposition_tool": "Автопозиция: маска + блок под ней"
 }
