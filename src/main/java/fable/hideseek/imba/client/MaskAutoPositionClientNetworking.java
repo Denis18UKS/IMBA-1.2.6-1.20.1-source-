@@ -15,13 +15,15 @@ public final class MaskAutoPositionClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(MaskAutoPositionNetworking.SYNC,
                 (client, handler, buf, responseSender) -> {
                     int size = Math.max(0, Math.min(buf.readVarInt(), 100000));
-                    Map<String, MaskAutoPositionConfig.Offset> values = new HashMap<>();
+                    Map<String, Map<String, MaskAutoPositionConfig.Offset>> values = new HashMap<>();
                     for (int i = 0; i < size; i++) {
-                        String id = buf.readString(256);
+                        String maskId = buf.readString(256);
+                        String supportId = buf.readString(256);
                         int x = buf.readInt();
                         int y = buf.readInt();
                         int z = buf.readInt();
-                        values.put(id, new MaskAutoPositionConfig.Offset(x, y, z));
+                        values.computeIfAbsent(maskId, ignored -> new HashMap<>())
+                                .put(supportId, new MaskAutoPositionConfig.Offset(x, y, z));
                     }
 
                     client.execute(() -> {
