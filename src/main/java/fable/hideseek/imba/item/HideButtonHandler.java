@@ -2,6 +2,7 @@ package fable.hideseek.imba.item;
 
 import fable.hideseek.imba.config.AttachmentConfig;
 import fable.hideseek.imba.config.MaskBlockConfig;
+import fable.hideseek.imba.config.MaskAutoPositionConfig;
 import fable.hideseek.imba.game.GameMessages;
 import fable.hideseek.imba.mask.MaskState;
 import fable.hideseek.imba.mask.MaskService;
@@ -25,47 +26,24 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 public final class HideButtonHandler {
-
     private static final int EFFECT_FOREVER = Integer.MAX_VALUE;
     private static final double FULL_BLOCK_EPSILON = 1.0E-7D;
 
-    private HideButtonHandler() {
-    }
+    private HideButtonHandler() {}
 
     public static void register() {
-        /*
-         * Right-clicking a block normally runs the block interaction before
-         * UseItemCallback. Handle the hide item here too, so an ordinary or
-         * interactive block can never swallow the "Скрыться" action.
-         */
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             ItemStack stack = player.getStackInHand(hand);
-            if (!(stack.getItem() instanceof HideItem)) {
-                return ActionResult.PASS;
-            }
-            if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
-                handle(serverPlayer);
-            }
+            if (!(stack.getItem() instanceof HideItem)) return ActionResult.PASS;
+            if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) handle(serverPlayer);
             return ActionResult.SUCCESS;
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
             ItemStack stack = player.getStackInHand(hand);
-
-            // Older builds used hide_button as the icon for blocks without an
-            // item form. Let the model handler consume those legacy stacks.
-            if (ModelEquipHandler.isModelItem(stack)) {
-                return TypedActionResult.pass(stack);
-            }
-
-            if (!(stack.getItem() instanceof HideItem)) {
-                return TypedActionResult.pass(stack);
-            }
-
-            if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
-                handle(serverPlayer);
-            }
-
+            if (ModelEquipHandler.isModelItem(stack)) return TypedActionResult.pass(stack);
+            if (!(stack.getItem() instanceof HideItem)) return TypedActionResult.pass(stack);
+            if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) handle(serverPlayer);
             return TypedActionResult.success(stack, world.isClient);
         });
     }
@@ -73,12 +51,10 @@ public final class HideButtonHandler {
     private static void handle(ServerPlayerEntity player) {
         var uuid = player.getUuid();
         MaskState state = MaskState.get(uuid);
-
         if (state.type == MaskType.NONE) {
             player.sendMessage(Text.literal("§cСначала надень модель"), true);
             return;
         }
-
         if (state.statue) {
             MaskState.disableStatue(uuid);
             player.setNoGravity(false);
@@ -94,7 +70,6 @@ public final class HideButtonHandler {
         double x = player.getX();
         double y = player.getY();
         double z = player.getZ();
-
         state.attachedToFrame = false;
         state.attachmentFacing = Direction.NORTH;
 
@@ -112,26 +87,19 @@ public final class HideButtonHandler {
                 z = Math.floor(z) + 0.5D;
             }
         } else if (state.type == MaskType.BLOCK) {
-            /*
-             * MaskBlockConfig is the source of truth. We deliberately do NOT
-             * inspect the block's real VoxelShape here.
-             *
-             * FULL means: behave as a full 1x1x1 cube even if the actual block
-             * is a slab, stair, farmland or another partial block. X/Z are
-             * centered on the grid and Y is raised to the top of the current
-             * whole block cell. Math.ceil is important: floor(64.5) would put a
-             * player standing on a half-height block at Y=64 and therefore
-             * inside that block; ceil(64.5) puts the unchanged player hitbox at
-             * Y=65, exactly as if the support were a full cube.
-             *
-             * NON-FULL means: do not force full-cube positioning at all; keep
-             * the player's exact XYZ. Hitboxes are NEVER changed here.
-             */
             if (MaskBlockConfig.isFull(state.block)) {
                 x = Math.floor(x) + 0.5D;
                 y = snapFullBlockY(y);
                 z = Math.floor(z) + 0.5D;
             }
+
+            // Fine-tuning is deliberately additive and separate from the normal
+            // auto-positioning. Blocks without an entry keep the exact existing
+            // behaviour. 16 model pixels = 1 Minecraft block. Hitboxes stay intact.
+            MaskAutoPositionConfig.Offset autoOffset = MaskAutoPositionConfig.offsetFor(state.block);
+            x += autoOffset.xPixels / 16.0D;
+            y += autoOffset.yPixels / 16.0D;
+            z += autoOffset.zPixels / 16.0D;
         } else if (shouldCenterOnBlock(state.type)) {
             x = Math.floor(x) + 0.5D;
             y = Math.floor(y);
@@ -155,24 +123,15 @@ public final class HideButtonHandler {
         player.setVelocity(0.0, 0.0, 0.0);
         player.fallDistance = 0.0f;
         player.setNoGravity(true);
-
         MaskState.enableStatue(uuid, x, y, z);
-
-        player.addStatusEffect(new StatusEffectInstance(
-                StatusEffects.INVISIBILITY,
-                EFFECT_FOREVER,
-                0,
-                false,
-                false,
-                false));
-
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY,
+                EFFECT_FOREVER, 0, false, false, false));
         player.calculateDimensions();
         MaskNetworking.refresh(player);
         GameMessages.send(player, Text.literal("§aВы замаскировались"));
     }
 
     private static double snapFullBlockY(double currentY) {
-        // Preserve an already exact integer Y instead of moving it up by one.
         return Math.ceil(currentY - FULL_BLOCK_EPSILON);
     }
 
@@ -188,35 +147,21 @@ public final class HideButtonHandler {
             var hit = frame.getBoundingBox().expand(0.15D).raycast(start, end);
             if (hit.isEmpty()) continue;
             double d = hit.get().squaredDistanceTo(start);
-            if (d < bestDistance) {
-                bestDistance = d;
-                best = frame;
-            }
+            if (d < bestDistance) { bestDistance = d; best = frame; }
         }
-        if (best != null) {
-            return new Attachment(best.getPos(), best.getHorizontalFacing(), true);
-        }
-        return null;
+        return best == null ? null : new Attachment(best.getPos(), best.getHorizontalFacing(), true);
     }
 
     private static BlockPos findBrewingStand(ServerPlayerEntity player) {
         BlockPos feet = player.getBlockPos();
-        if (player.getWorld().getBlockState(feet).isOf(net.minecraft.block.Blocks.BREWING_STAND)) {
-            return feet;
-        }
+        if (player.getWorld().getBlockState(feet).isOf(net.minecraft.block.Blocks.BREWING_STAND)) return feet;
         BlockPos below = feet.down();
-        return player.getWorld().getBlockState(below).isOf(net.minecraft.block.Blocks.BREWING_STAND)
-                ? below : null;
+        return player.getWorld().getBlockState(below).isOf(net.minecraft.block.Blocks.BREWING_STAND) ? below : null;
     }
 
     private static boolean shouldCenterOnBlock(MaskType type) {
-        return type == MaskType.BLOCK
-                || type == MaskType.DOOR
-                || type == MaskType.PORTAL
-                || type == MaskType.LADDER_REVERSED
-                || type == MaskType.BUTTON
-                || type == MaskType.SCULK_VEIN
-                || type == MaskType.LANTERN
-                || type == MaskType.STEM;
+        return type == MaskType.BLOCK || type == MaskType.DOOR || type == MaskType.PORTAL
+                || type == MaskType.LADDER_REVERSED || type == MaskType.BUTTON
+                || type == MaskType.SCULK_VEIN || type == MaskType.LANTERN || type == MaskType.STEM;
     }
 }
