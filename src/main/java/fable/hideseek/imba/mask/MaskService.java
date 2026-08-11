@@ -8,6 +8,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.block.ButtonBlock;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.LadderBlock;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
@@ -31,16 +32,43 @@ public final class MaskService {
     }
 
     public static void resetMask(ServerPlayerEntity player) {
+        /*
+         * Reset the mask state BEFORE recalculating dimensions so the
+         * PlayerEntityMixin stops returning mask dimensions immediately.
+         */
         MaskState.disableStatue(player.getUuid());
         MaskState.reset(player.getUuid());
 
+        double x = player.getX();
+        double y = player.getY();
+        double z = player.getZ();
+
         player.removeStatusEffect(StatusEffects.INVISIBILITY);
         player.setNoGravity(false);
-        player.setSneaking(false);
         player.setVelocity(Vec3d.ZERO);
         player.fallDistance = 0.0f;
+
+        /*
+         * setSneaking(false) only clears the sneaking input flag. Minecraft
+         * keeps the actual tracked EntityPose separately, and that stale pose
+         * can keep the physical bounding box in the mask/crouching state until
+         * the player presses Shift once. Force the vanilla standing state now
+         * and recalculate the real player bounding box immediately.
+         */
+        player.setSneaking(false);
+        player.setSwimming(false);
+        player.setPose(EntityPose.STANDING);
         player.calculateDimensions();
-        player.requestTeleport(player.getX(), player.getY(), player.getZ());
+
+        /*
+         * Keep the same world position, but make the server send a position
+         * refresh together with the pose/dimension change. Recalculate once
+         * more after the teleport so movement collision uses the new box in
+         * the exact final position during this same tick.
+         */
+        player.requestTeleport(x, y, z);
+        player.setPose(EntityPose.STANDING);
+        player.calculateDimensions();
 
         MaskNetworking.sendMaskReset(player);
         MaskNetworking.sendStatueSync(player, false);
