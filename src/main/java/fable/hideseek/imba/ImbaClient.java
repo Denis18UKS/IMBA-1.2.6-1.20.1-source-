@@ -7,6 +7,8 @@ import fable.hideseek.imba.client.PotionOffsetScreen;
 import fable.hideseek.imba.client.LocationCameraScreen;
 import fable.hideseek.imba.client.MaskBlockConfigScreen;
 import fable.hideseek.imba.client.MaskBlockConfigClientNetworking;
+import fable.hideseek.imba.client.MaskAutoPositionScreen;
+import fable.hideseek.imba.client.MaskAutoPositionClientNetworking;
 import fable.hideseek.imba.client.ClientPhotoCapture;
 import fable.hideseek.imba.client.StartBlockNameScreen;
 import fable.hideseek.imba.client.WorldPanelRenderer;
@@ -31,6 +33,7 @@ public class ImbaClient implements ClientModInitializer {
         KeyBindings.register();
         ModelTokenRenderer.register();
         MaskBlockConfigClientNetworking.register();
+        MaskAutoPositionClientNetworking.register();
 
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.GLOWBERRIES, RenderLayer.getCutout());
         BlockRenderLayerMap.INSTANCE.putBlock(ImbaMod.GRASS, RenderLayer.getCutout());
@@ -63,14 +66,17 @@ public class ImbaClient implements ClientModInitializer {
                 net.minecraft.client.MinecraftClient.getInstance().setScreen(new MaskBlockConfigScreen());
                 return TypedActionResult.success(player.getStackInHand(hand));
             }
+            if (world.isClient && player.getStackInHand(hand).isOf(ImbaMod.MASK_AUTOPOSITION_TOOL)) {
+                net.minecraft.client.MinecraftClient.getInstance().setScreen(new MaskAutoPositionScreen());
+                return TypedActionResult.success(player.getStackInHand(hand));
+            }
             return TypedActionResult.pass(player.getStackInHand(hand));
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world.isClient && player.isSneaking()
                     && world.getBlockState(hit.getBlockPos()).isOf(ImbaMod.START_BLOCK)) {
-                net.minecraft.client.MinecraftClient.getInstance()
-                        .setScreen(new StartBlockNameScreen(hit.getBlockPos()));
+                net.minecraft.client.MinecraftClient.getInstance().setScreen(new StartBlockNameScreen(hit.getBlockPos()));
                 return net.minecraft.util.ActionResult.SUCCESS;
             }
             return net.minecraft.util.ActionResult.PASS;
@@ -82,12 +88,9 @@ public class ImbaClient implements ClientModInitializer {
             if (client.player != null) {
                 boolean hasMask = ClientMaskData.hasMask(client.player.getUuid());
                 boolean hasInvisibility = client.player.hasStatusEffect(StatusEffects.INVISIBILITY);
-
                 if (hasMask && !hasInvisibility) {
-                    client.player.addStatusEffect(new StatusEffectInstance(
-                            StatusEffects.INVISIBILITY,
-                            StatusEffectInstance.INFINITE,
-                            0, false, false, false));
+                    client.player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY,
+                            StatusEffectInstance.INFINITE, 0, false, false, false));
                 } else if (!hasMask && hasInvisibility) {
                     client.player.removeStatusEffect(StatusEffects.INVISIBILITY);
                 }
