@@ -2,17 +2,26 @@ package fable.hideseek.imba.net;
 
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.PanelData;
+import fable.hideseek.imba.mask.MaskResetGeometry;
 import fable.hideseek.imba.mask.MaskType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.block.Block;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
 
 public final class MaskClientNetworking {
+
+    private static final int RESET_RECOVERY_PASSES = 2;
+    private static final Map<UUID, Integer> RESET_RECOVERY = new HashMap<>();
 
     private MaskClientNetworking() {
     }
@@ -35,6 +44,8 @@ public final class MaskClientNetworking {
                     int frameRotationStep = buf.readInt();
 
                     client.execute(() -> {
+                        RESET_RECOVERY.remove(uuid);
+
                         Block block = blockId.isEmpty() ? null : Registries.BLOCK.get(new Identifier(blockId));
                         Item item = itemId.isEmpty() ? null : Registries.ITEM.get(new Identifier(itemId));
 
@@ -69,17 +80,18 @@ public final class MaskClientNetworking {
                         if (client.world != null) {
                             var maskedPlayer = client.world.getPlayerByUuid(uuid);
                             fable.hideseek.imba.client.ClientStatueLock.release(maskedPlayer);
-                            if (maskedPlayer != null) {
-                                maskedPlayer.setSneaking(false);
-                                maskedPlayer.calculateDimensions();
-                            }
+                            restoreStandingAfterMaskReset(maskedPlayer);
+                            RESET_RECOVERY.put(uuid, RESET_RECOVERY_PASSES);
                         }
                     });
                 });
 
         ClientPlayNetworking.registerGlobalReceiver(MaskNetworking.RESYNC_CLEAR,
                 (client, handler, buf, responseSender) ->
-                        client.execute(ClientMaskData::clearAll));
+                        client.execute(() -> {
+                            RESET_RECOVERY.clear();
+                            ClientMaskData.clearAll();
+                        }));
 
         ClientPlayNetworking.registerGlobalReceiver(MaskNetworking.STATUE_SYNC,
                 (client, handler, buf, responseSender) -> {
@@ -96,8 +108,13 @@ public final class MaskClientNetworking {
                                 fable.hideseek.imba.client.ClientStatueLock.apply(player);
                             } else {
                                 fable.hideseek.imba.client.ClientStatueLock.release(player);
+                                if (!ClientMaskData.hasMask(uuid)) {
+                                    restoreStandingAfterMaskReset(player);
+                                } else if (player != null) {
+                                    player.calculateDimensions();
+                                }
                             }
-                            if (player != null) {
+                            if (statue && player != null) {
                                 player.calculateDimensions();
                             }
                         }
@@ -155,5 +172,39 @@ public final class MaskClientNetworking {
                         }
                     });
                 });
+    }
+
+    /** Runs from END_CLIENT_TICK so reset geometry survives packet/tick ordering. */
+    public static void tickResetRecovery(MinecraftClient client) {
+        if (client == null || client.world == null || RESET_RECOVERY.isEmpty()) {
+            return;
+        }
+
+        Iterator<Map.Entry<UUID, Integer>> iterator = RESET_RECOVERY.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, Integer> entry = iterator.next();
+            UUID uuid = entry.getKey();
+
+            if (ClientMaskData.hasMask(uuid)) {
+                iterator.remove();
+                continue;
+            }
+
+            PlayerEntity player = client.world.getPlayerByUuid(uuid);
+            if (player != null) {
+                restoreStandingAfterMaskReset(player);
+            }
+
+            int remaining = entry.getValue() - 1;
+            if (remaining <= 0) {
+                iterator.remove();
+            } else {
+                entry.setValue(remaining);
+            }
+        }
+    }
+
+    private static void restoreStandingAfterMaskReset(PlayerEntity player) {
+        MaskResetGeometry.forceStanding(player);
     }
 }

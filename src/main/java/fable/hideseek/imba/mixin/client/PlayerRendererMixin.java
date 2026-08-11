@@ -1,11 +1,14 @@
 package fable.hideseek.imba.mixin.client;
 
 import fable.hideseek.imba.client.ClientMaskData;
+import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,6 +31,16 @@ public class PlayerRendererMixin {
                 }
 
                 ci.cancel();
-                MaskRenderHelper.renderMask(uuid, matrices, consumers, light);
+                int maskLight = MaskLightHelper.resolve(
+                                uuid, player.getWorld(), player.getX(), player.getY(), player.getZ());
+                Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
+                double renderX = anchor == null ? player.getX() : anchor.x;
+                double renderY = anchor == null ? player.getY() : anchor.y;
+                double renderZ = anchor == null ? player.getZ() : anchor.z;
+                // Use the cell occupied by the visible mask, not a fractional
+                // support block below it. This is shared by moving/statue masks.
+                BlockPos renderPos = BlockPos.ofFloored(renderX, renderY + 0.5D, renderZ);
+                MaskRenderHelper.renderMask(
+                                uuid, matrices, consumers, maskLight, player.getWorld(), renderPos);
         }
 }

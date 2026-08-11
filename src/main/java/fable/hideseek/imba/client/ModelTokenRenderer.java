@@ -12,10 +12,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
-/**
- * Renders the real target block on model tokens used for blocks that have no
- * vanilla item form, such as the Nether portal.
- */
+/** Renders the real target block on model tokens used for blocks without items. */
 public final class ModelTokenRenderer {
     private ModelTokenRenderer() {
     }
@@ -46,15 +43,16 @@ public final class ModelTokenRenderer {
                                     : block.getDefaultState();
 
                     matrices.push();
-                    /*
-                     * Builtin block models can visually fill more than the
-                     * nominal 16x16 GUI box. The portal needs a little extra
-                     * margin so its animated quad never crosses a hotbar or
-                     * inventory slot border.
-                     */
                     if (mode == ModelTransformationMode.GUI) {
-                        float guiScale = block == Blocks.NETHER_PORTAL ? 0.58F : 1.0F;
-                        matrices.scale(guiScale, guiScale, guiScale);
+                        // Builtin/entity tokens use a different GUI origin than
+                        // generated items. Keep all block tokens inside the slot;
+                        // the portal also needs a small X/Y recentering offset.
+                        if (block == Blocks.NETHER_PORTAL) {
+                            matrices.translate(0.13D, 0.16D, 0.0D);
+                            matrices.scale(0.28F, 0.28F, 0.28F);
+                        } else {
+                            matrices.scale(0.48F, 0.48F, 0.48F);
+                        }
                     }
                     MinecraftClient.getInstance().getBlockRenderManager().renderBlockAsEntity(
                             state,

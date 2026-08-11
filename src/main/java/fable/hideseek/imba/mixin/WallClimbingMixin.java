@@ -9,8 +9,6 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,36 +24,30 @@ public abstract class WallClimbingMixin extends Entity {
     }
 
     private boolean imba$canSpiderClimb(PlayerEntity player) {
-        if (!GameRoles.isHider(player)) {
-            return false;
-        }
-
         if (!MaskState.hasMask(player.getUuid())) {
             return false;
         }
-
         MaskState state = MaskState.get(player.getUuid());
-
-        if (state.statue) {
-            return false;
-        }
-
-        return state.wallClimbing && MaskService.supportsWallClimbing(state);
+        return !state.statue
+                && state.wallClimbing
+                && MaskService.supportsWallClimbing(state);
     }
 
     private boolean imba$isOnPlayerLadder(LivingEntity entity) {
-        return PlayerLadderHelper.isNearPlayerLadder(entity);
+        return entity instanceof PlayerEntity player
+                && GameRoles.isSeeker(player)
+                && PlayerLadderHelper.isTouchingPlayerLadder(entity);
     }
 
     @Inject(method = "isClimbing", at = @At("HEAD"), cancellable = true)
     private void imba$allowCustomClimbing(CallbackInfoReturnable<Boolean> cir) {
         LivingEntity self = (LivingEntity) (Object) this;
 
-        if (self instanceof PlayerEntity player) {
-            if (imba$canSpiderClimb(player) && this.horizontalCollision) {
-                cir.setReturnValue(true);
-                return;
-            }
+        if (self instanceof PlayerEntity player
+                && imba$canSpiderClimb(player)
+                && this.horizontalCollision) {
+            cir.setReturnValue(true);
+            return;
         }
 
         if (imba$isOnPlayerLadder(self)) {
@@ -67,49 +59,31 @@ public abstract class WallClimbingMixin extends Entity {
     private void imba$applyCustomClimbingMotion(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
 
-        boolean spiderClimb = self instanceof PlayerEntity player
+        if (self instanceof PlayerEntity player
                 && imba$canSpiderClimb(player)
-                && this.horizontalCollision;
-
-        boolean playerLadder = imba$isOnPlayerLadder(self);
-
-        if (spiderClimb) {
-            self.fallDistance = 0.0f;
-
-            Vec3d vel = self.getVelocity();
-            double newY = vel.y;
-
-            if (newY < 0.0D) {
-                newY = 0.0D;
-            }
-
-            newY = Math.max(newY, 0.20D);
-            self.setVelocity(vel.x, newY, vel.z);
+                && this.horizontalCollision) {
+            self.fallDistance = 0.0F;
+            Vec3d velocity = self.getVelocity();
+            double y = self.isSneaking() ? Math.min(0.0D, velocity.y) : Math.max(velocity.y, 0.20D);
+            self.setVelocity(velocity.x, y, velocity.z);
             return;
         }
 
-        if (playerLadder) {
-            self.fallDistance = 0.0f;
-
-            Vec3d vel = self.getVelocity();
-            double newY = vel.y;
-
-            boolean movingIntoLadder = this.horizontalCollision || vel.horizontalLengthSquared() > 1.0E-4D;
-
-            if (movingIntoLadder && !self.isSneaking()) {
-                newY = Math.max(newY, 0.20D);
-                if (!self.getWorld().isClient && self.age % 8 == 0) {
-                    self.getWorld().playSound(null, self.getBlockPos(), SoundEvents.BLOCK_LADDER_STEP,
-                            SoundCategory.BLOCKS, 0.35F, 1.0F);
-                }
-            }
-
-            if (newY < -0.15D) {
-                newY = -0.15D;
-            }
-
-            self.setVelocity(vel.x, newY, vel.z);
+        if (!imba$isOnPlayerLadder(self)) {
+            return;
         }
+
+        self.fallDistance = 0.0F;
+        Vec3d velocity = self.getVelocity();
+        double y = Math.max(velocity.y, -0.15D);
+
+        if (PlayerLadderHelper.isMovingTowardPlayerLadder(self) && !self.isSneaking()) {
+            y = Math.max(y, 0.20D);
+        } else if (self.isSneaking()) {
+            y = 0.0D;
+        }
+
+        self.setVelocity(velocity.x, y, velocity.z);
     }
 
     @Inject(method = "pushAwayFrom", at = @At("HEAD"), cancellable = true)
@@ -117,6 +91,8 @@ public abstract class WallClimbingMixin extends Entity {
         LivingEntity self = (LivingEntity) (Object) this;
         boolean selfMasked = self instanceof PlayerEntity player && MaskState.isStatue(player.getUuid());
         boolean otherMasked = other instanceof PlayerEntity player && MaskState.isStatue(player.getUuid());
-        if (selfMasked || otherMasked) ci.cancel();
+        if (selfMasked || otherMasked) {
+            ci.cancel();
+        }
     }
 }

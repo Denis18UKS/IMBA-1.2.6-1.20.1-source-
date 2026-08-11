@@ -1,6 +1,7 @@
 package fable.hideseek.imba.client;
 
 import fable.hideseek.imba.net.MaskNetworking;
+import fable.hideseek.imba.net.WallClimbNetworking;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -70,8 +71,7 @@ public class KeyBindings {
                         }
 
                         while (wallClimbKey.wasPressed()) {
-                                ClientPlayNetworking.send(MaskNetworking.WALL_CLIMB_TOGGLE_PACKET,
-                                                PacketByteBufs.empty());
+                                ClientPlayNetworking.send(WallClimbNetworking.TOGGLE, PacketByteBufs.empty());
                         }
 
                         boolean attackNow = client.options.attackKey.isPressed();

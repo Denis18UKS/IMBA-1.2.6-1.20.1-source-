@@ -1,6 +1,7 @@
 package fable.hideseek.imba.mixin.client;
 
 import fable.hideseek.imba.client.ClientPlayerLadderHelper;
+import fable.hideseek.imba.game.GameRoles;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -20,36 +21,35 @@ public abstract class ClientPlayerLadderMixin extends Entity {
         super(type, world);
     }
 
-    private boolean imba$isLocalPlayerOnLadder() {
+    private boolean imba$isLocalSeekerOnPlayerLadder() {
         LivingEntity self = (LivingEntity) (Object) this;
-        return self instanceof PlayerEntity
+        return self instanceof PlayerEntity player
                 && MinecraftClient.getInstance().player == self
-                && ClientPlayerLadderHelper.isNearPlayerLadder(self);
+                && GameRoles.isSeeker(player)
+                && ClientPlayerLadderHelper.isTouchingPlayerLadder(self);
     }
 
     @Inject(method = "isClimbing", at = @At("HEAD"), cancellable = true)
     private void imba$usePlayerLadderForPrediction(CallbackInfoReturnable<Boolean> cir) {
-        if (imba$isLocalPlayerOnLadder()) {
+        if (imba$isLocalSeekerOnPlayerLadder()) {
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "tickMovement", at = @At("TAIL"))
     private void imba$applyPlayerLadderMotion(CallbackInfo ci) {
-        if (!imba$isLocalPlayerOnLadder()) {
+        if (!imba$isLocalSeekerOnPlayerLadder()) {
             return;
         }
         LivingEntity self = (LivingEntity) (Object) this;
         self.fallDistance = 0.0F;
         Vec3d velocity = self.getVelocity();
-        double vertical = Math.max(velocity.y, -0.15D);
-        boolean movingHorizontally = velocity.horizontalLengthSquared() > 1.0E-5D
-                || this.horizontalCollision;
-        if (movingHorizontally && !self.isSneaking()) {
-            vertical = Math.max(vertical, 0.20D);
+        double y = Math.max(velocity.y, -0.15D);
+        if (ClientPlayerLadderHelper.isMovingTowardPlayerLadder(self) && !self.isSneaking()) {
+            y = Math.max(y, 0.20D);
         } else if (self.isSneaking()) {
-            vertical = 0.0D;
+            y = 0.0D;
         }
-        self.setVelocity(velocity.x, vertical, velocity.z);
+        self.setVelocity(velocity.x, y, velocity.z);
     }
 }

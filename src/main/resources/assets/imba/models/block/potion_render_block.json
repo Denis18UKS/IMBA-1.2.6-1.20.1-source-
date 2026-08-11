@@ -1,0 +1,18 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "0": "imba:item/potion_2d",
+    "particle": "imba:item/potion_2d"
+  },
+  "elements": [
+    {
+      "from": [4.25, 0, 8],
+      "to": [11.75, 10.5, 8],
+      "faces": {
+        "north": {"uv": [5, 8, 10, 15], "texture": "#0"},
+        "south": {"uv": [5, 8, 10, 15], "texture": "#0"}
+      },
+      "shade": false
+    }
+  ]
+}

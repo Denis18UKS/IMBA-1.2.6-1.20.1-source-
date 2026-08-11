@@ -45,10 +45,14 @@ public abstract class PlayerEntityMixin {
     private void tick(CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this;
         if (self.getWorld().isClient) {
-            // ClientMaskData is authoritative on the client and also carries
-            // the statue anchor. Client mixins handle its movement separately.
             return;
         }
+
+        // A reset schedules two extra server-side geometry passes. They are
+        // executed before the ordinary no-mask early return so a stale physical
+        // bounding box cannot survive the reset tick and wait for manual Shift.
+        MaskService.tickResetRecovery(self);
+
         if (!MaskState.hasMask(self.getUuid())) {
             self.setNoGravity(false);
             return;
@@ -66,22 +70,10 @@ public abstract class PlayerEntityMixin {
             double dz = Math.abs(self.getZ() - state.anchorZ);
 
             if (dx > 0.01 || dy > 0.01 || dz > 0.01) {
-                // Do not emit a teleport packet every time a late movement
-                // packet arrives; simply keep the authoritative entity fixed.
                 self.setPosition(state.anchorX, state.anchorY, state.anchorZ);
             }
         } else {
             self.setNoGravity(false);
-
-            if (MaskService.supportsWallClimbing(state) && state.wallClimbing && self.horizontalCollision) {
-                Vec3d v = self.getVelocity();
-                double newY = v.y < 0.0 ? 0.0 : v.y;
-                if (newY < 0.20D) {
-                    newY = 0.20D;
-                }
-                self.setVelocity(v.x, newY, v.z);
-                self.fallDistance = 0.0f;
-            }
         }
     }
 

@@ -8,6 +8,8 @@ import fable.hideseek.imba.config.BreakRulesConfig;
 import fable.hideseek.imba.config.PortalConfig;
 import fable.hideseek.imba.config.GameSettingsConfig;
 import fable.hideseek.imba.config.LocationSettingsConfig;
+import fable.hideseek.imba.config.MaskBlockConfig;
+import fable.hideseek.imba.config.MaskAutoPositionConfig;
 import fable.hideseek.imba.config.TeleportConfig;
 import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.game.GameplayRulesHandler;
@@ -17,6 +19,8 @@ import fable.hideseek.imba.item.ModelEquipHandler;
 import fable.hideseek.imba.item.TeleportToolHandler;
 import fable.hideseek.imba.net.MaskNetworking;
 import fable.hideseek.imba.net.TeleportToolNetworking;
+import fable.hideseek.imba.net.MaskBlockConfigNetworking;
+import fable.hideseek.imba.net.MaskAutoPositionNetworking;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
@@ -40,6 +44,8 @@ public class ImbaMod implements ModInitializer {
         public static final Item TELEPORT_TOOL = new Item(new Item.Settings().maxCount(1));
         public static final Item POTION_OFFSET_TOOL = new Item(new Item.Settings().maxCount(1));
         public static final Item LOCATION_CAMERA = new Item(new Item.Settings().maxCount(1));
+        public static final Item MASK_BLOCK_CONFIG_TOOL = new Item(new Item.Settings().maxCount(1));
+        public static final Item MASK_AUTOPOSITION_TOOL = new Item(new Item.Settings().maxCount(1));
         public static final Block WATER_MASK = Registry.register(
                         Registries.BLOCK,
                         new Identifier("imba", "water_mask"),
@@ -52,6 +58,10 @@ public class ImbaMod implements ModInitializer {
                         Registries.BLOCK,
                         new Identifier("imba", "ladder_mask"),
                         new Block(Block.Settings.copy(Blocks.LADDER).nonOpaque().luminance(state -> 15)));
+        public static final Block POTION_RENDER_BLOCK = Registry.register(
+                        Registries.BLOCK,
+                        new Identifier("imba", "potion_render_block"),
+                        new Block(Block.Settings.copy(Blocks.BREWING_STAND).nonOpaque().noCollision()));
         public static final Block HANGING_LANTERN = Registry.register(
                         Registries.BLOCK,
                         new Identifier("imba", "hanging_lantern"),
@@ -69,31 +79,11 @@ public class ImbaMod implements ModInitializer {
                         Registries.BLOCK,
                         new Identifier("imba", "invisible_sign"),
                         new InvisibleSignBlock(Block.Settings.copy(Blocks.OAK_SIGN).nonOpaque().noCollision()));
-
-        public static final Block GLOWBERRIES = Registry.register(
-                        Registries.BLOCK,
-                        new Identifier("imba", "glowberries"),
-                        new GlowberriesBlock(Block.Settings.copy(Blocks.OAK_LEAVES)));
-
-        public static final Block GRASS = Registry.register(
-                        Registries.BLOCK,
-                        new Identifier("imba", "grass"),
-                        new GrassBlock(Block.Settings.copy(Blocks.GRASS)));
-
-        public static final Block LADDER = Registry.register(
-                        Registries.BLOCK,
-                        new Identifier("imba", "ladder"),
-                        new LadderBlock(Block.Settings.copy(Blocks.LADDER)));
-
-        public static final Block STONRCUTTER_BLOCK = Registry.register(
-                        Registries.BLOCK,
-                        new Identifier("imba", "stonrcutter_block"),
-                        new StonercutterBlockBlock(Block.Settings.copy(Blocks.STONECUTTER)));
-
-        public static final Block STONRCUTTER_LEZVIE = Registry.register(
-                        Registries.BLOCK,
-                        new Identifier("imba", "stonrcutter_lezvie"),
-                        new StonercutterBlockLezvie(Block.Settings.copy(Blocks.STONECUTTER)));
+        public static final Block GLOWBERRIES = Registry.register(Registries.BLOCK,new Identifier("imba", "glowberries"),new GlowberriesBlock(Block.Settings.copy(Blocks.OAK_LEAVES)));
+        public static final Block GRASS = Registry.register(Registries.BLOCK,new Identifier("imba", "grass"),new GrassBlock(Block.Settings.copy(Blocks.GRASS)));
+        public static final Block LADDER = Registry.register(Registries.BLOCK,new Identifier("imba", "ladder"),new LadderBlock(Block.Settings.copy(Blocks.LADDER)));
+        public static final Block STONRCUTTER_BLOCK = Registry.register(Registries.BLOCK,new Identifier("imba", "stonrcutter_block"),new StonercutterBlockBlock(Block.Settings.copy(Blocks.STONECUTTER)));
+        public static final Block STONRCUTTER_LEZVIE = Registry.register(Registries.BLOCK,new Identifier("imba", "stonrcutter_lezvie"),new StonercutterBlockLezvie(Block.Settings.copy(Blocks.STONECUTTER)));
 
         @Override
         public void onInitialize() {
@@ -104,6 +94,8 @@ public class ImbaMod implements ModInitializer {
                 Registry.register(Registries.ITEM, new Identifier("imba", "teleport_tool"), TELEPORT_TOOL);
                 Registry.register(Registries.ITEM, new Identifier("imba", "potion_offset_tool"), POTION_OFFSET_TOOL);
                 Registry.register(Registries.ITEM, new Identifier("imba", "location_camera"), LOCATION_CAMERA);
+                Registry.register(Registries.ITEM, new Identifier("imba", "mask_block_config_tool"), MASK_BLOCK_CONFIG_TOOL);
+                Registry.register(Registries.ITEM, new Identifier("imba", "mask_autoposition_tool"), MASK_AUTOPOSITION_TOOL);
 
                 registerBlockItem("glowberries", GLOWBERRIES);
                 registerBlockItem("grass", GRASS);
@@ -124,6 +116,8 @@ public class ImbaMod implements ModInitializer {
                                         entries.add(TELEPORT_TOOL);
                                         entries.add(POTION_OFFSET_TOOL);
                                         entries.add(LOCATION_CAMERA);
+                                        entries.add(MASK_BLOCK_CONFIG_TOOL);
+                                        entries.add(MASK_AUTOPOSITION_TOOL);
                                         entries.add(GLOWBERRIES);
                                         entries.add(GRASS);
                                         entries.add(LADDER);
@@ -133,8 +127,7 @@ public class ImbaMod implements ModInitializer {
                                         entries.add(SETTINGS_PANEL);
                                         entries.add(START_BLOCK);
                                         entries.add(INVISIBLE_SIGN);
-                                })
-                                .build());
+                                }).build());
 
                 PortalConfig.load();
                 AttachmentConfig.load();
@@ -142,10 +135,14 @@ public class ImbaMod implements ModInitializer {
                 GameSettingsConfig.load();
                 LocationSettingsConfig.load();
                 TeleportConfig.load();
+                MaskBlockConfig.load();
+                MaskAutoPositionConfig.load();
 
                 CommandInit.register();
                 MaskNetworking.register();
                 TeleportToolNetworking.register();
+                MaskBlockConfigNetworking.register();
+                MaskAutoPositionNetworking.register();
                 HideButtonHandler.register();
                 ModelEquipHandler.register();
                 TeleportToolHandler.register();
@@ -154,7 +151,6 @@ public class ImbaMod implements ModInitializer {
         }
 
         private void registerBlockItem(String name, Block block) {
-                Registry.register(Registries.ITEM, new Identifier("imba", name),
-                                new BlockItem(block, new Item.Settings()));
+                Registry.register(Registries.ITEM, new Identifier("imba", name), new BlockItem(block, new Item.Settings()));
         }
 }
