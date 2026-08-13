@@ -66,6 +66,10 @@ public class ImbaMod implements ModInitializer {
                         Registries.BLOCK,
                         new Identifier("imba", "hanging_lantern"),
                         new net.minecraft.block.LanternBlock(Block.Settings.copy(Blocks.LANTERN)));
+        public static final Block UNDERWATER_BARRIER = Registry.register(
+                        Registries.BLOCK,
+                        new Identifier("imba", "underwater_barrier"),
+                        new UnderwaterBarrierBlock(Block.Settings.copy(Blocks.BARRIER).nonOpaque()));
         public static final Block SETTINGS_PANEL=Registry.register(Registries.BLOCK,new Identifier("imba","settings_panel"),new SettingsPanelBlock(Block.Settings.copy(Blocks.DARK_OAK_PLANKS)));
         public static final Block START_BLOCK = Registry.register(
                         Registries.BLOCK,
@@ -103,6 +107,7 @@ public class ImbaMod implements ModInitializer {
                 registerBlockItem("stonrcutter_block", STONRCUTTER_BLOCK);
                 registerBlockItem("stonrcutter_lezvie", STONRCUTTER_LEZVIE);
                 registerBlockItem("hanging_lantern", HANGING_LANTERN);
+                registerBlockItem("underwater_barrier", UNDERWATER_BARRIER);
                 registerBlockItem("settings_panel", SETTINGS_PANEL);
                 registerBlockItem("start_block", START_BLOCK);
                 registerBlockItem("invisible_sign", INVISIBLE_SIGN);
@@ -124,6 +129,7 @@ public class ImbaMod implements ModInitializer {
                                         entries.add(STONRCUTTER_BLOCK);
                                         entries.add(STONRCUTTER_LEZVIE);
                                         entries.add(HANGING_LANTERN);
+                                        entries.add(UNDERWATER_BARRIER);
                                         entries.add(SETTINGS_PANEL);
                                         entries.add(START_BLOCK);
                                         entries.add(INVISIBLE_SIGN);

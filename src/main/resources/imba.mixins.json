@@ -18,6 +18,7 @@
         "BedBlockMixin",
         "DoorCollisionMixin",
         "TntEntityMixin",
+        "TntMinecartEntityMixin",
         "MaskServiceGuardMixin",
         "EntityPlayerDoorCollisionMixin"
     ],

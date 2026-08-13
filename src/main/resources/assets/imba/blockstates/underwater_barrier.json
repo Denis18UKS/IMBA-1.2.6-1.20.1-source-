@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "waterlogged=false": { "model": "imba:block/underwater_barrier" },
+    "waterlogged=true": { "model": "imba:block/underwater_barrier" }
+  }
+}
