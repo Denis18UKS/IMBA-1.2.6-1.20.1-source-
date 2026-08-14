@@ -3,7 +3,6 @@ package fable.hideseek.imba.block;
 import fable.hideseek.imba.config.GameSettingsConfig;
 import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.net.MaskNetworking;
-import fable.hideseek.imba.net.PanelSettingsNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.LivingEntity;
@@ -59,35 +58,20 @@ public final class SettingsPanelBlock extends Block {
             try {
                 for (int y = 0; y < 2; y++) for (int x = 0; x < 3; x++) {
                     BlockPos part = origin.offset(right, x).up(y);
-                    if (!part.equals(pos) && world.getBlockState(part).isOf(this)) {
-                        world.removeBlock(part, false);
-                    }
+                    if (!part.equals(pos) && world.getBlockState(part).isOf(this)) world.removeBlock(part, false);
                 }
-            } finally {
-                dismantling = false;
-            }
+            } finally { dismantling = false; }
         }
         super.onStateReplaced(state, world, pos, replacement, moved);
     }
 
     @Override public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (world.isClient) return ActionResult.SUCCESS;
-        if (!(player instanceof ServerPlayerEntity serverPlayer)) return ActionResult.PASS;
-
-        if (player.isSneaking()) {
-            PanelSettingsNetworking.sendOpen(serverPlayer);
-            return ActionResult.SUCCESS;
-        }
-
+        if (!(player instanceof ServerPlayerEntity)) return ActionResult.PASS;
         int column = state.get(COLUMN), direction = state.get(ROW) == 1 ? 1 : -1;
-        if (column == 0) {
-            GameConfig.setRoundSeconds(Math.max(30, Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
-        } else if (column == 2) {
-            GameConfig.setSeekerHearts(Math.max(1, Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
-        } else {
-            PanelSettingsNetworking.sendOpen(serverPlayer);
-            return ActionResult.SUCCESS;
-        }
+        if (column == 0) GameConfig.setRoundSeconds(Math.max(30, Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
+        else if (column == 2) GameConfig.setSeekerHearts(Math.max(1, Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
+        else return ActionResult.PASS;
         GameSettingsConfig.save();
         MaskNetworking.broadcastPanelData(player.getServer());
         return ActionResult.SUCCESS;

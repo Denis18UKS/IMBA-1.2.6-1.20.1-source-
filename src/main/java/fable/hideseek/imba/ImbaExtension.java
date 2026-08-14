@@ -1,6 +1,7 @@
 package fable.hideseek.imba;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
+import fable.hideseek.imba.config.AirFixationConfig;
 import fable.hideseek.imba.config.BreakRulesConfig;
 import fable.hideseek.imba.config.GameSettingsConfig;
 import fable.hideseek.imba.config.HologramConfig;
@@ -10,6 +11,7 @@ import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.game.GameRoles;
 import fable.hideseek.imba.item.RoundRestoreToolHandler;
+import fable.hideseek.imba.net.AirFixationNetworking;
 import fable.hideseek.imba.net.BlockRulesNetworking;
 import fable.hideseek.imba.net.HologramNetworking;
 import fable.hideseek.imba.net.MaskNetworking;
@@ -40,6 +42,8 @@ public final class ImbaExtension implements ModInitializer {
     public static final Item BLOCK_RESTORE_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item STRUCTURE_LAYER_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item HOLOGRAM_PROJECTOR_TOOL = new Item(new Item.Settings().maxCount(1));
+    public static final Item PANEL_SETTINGS_TOOL = new Item(new Item.Settings().maxCount(1));
+    public static final Item AIR_FIXATION_TOOL = new Item(new Item.Settings().maxCount(1));
 
     @Override
     public void onInitialize() {
@@ -47,6 +51,8 @@ public final class ImbaExtension implements ModInitializer {
         Registry.register(Registries.ITEM, new Identifier("imba", "block_restore_tool"), BLOCK_RESTORE_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "structure_layer_tool"), STRUCTURE_LAYER_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "hologram_projector_tool"), HOLOGRAM_PROJECTOR_TOOL);
+        Registry.register(Registries.ITEM, new Identifier("imba", "panel_settings_tool"), PANEL_SETTINGS_TOOL);
+        Registry.register(Registries.ITEM, new Identifier("imba", "air_fixation_tool"), AIR_FIXATION_TOOL);
 
         RegistryKey<ItemGroup> imbaGroup = RegistryKey.of(RegistryKeys.ITEM_GROUP, new Identifier("imba", "main"));
         ItemGroupEvents.modifyEntriesEvent(imbaGroup).register(entries -> {
@@ -54,12 +60,16 @@ public final class ImbaExtension implements ModInitializer {
             entries.add(BLOCK_RESTORE_TOOL);
             entries.add(STRUCTURE_LAYER_TOOL);
             entries.add(HOLOGRAM_PROJECTOR_TOOL);
+            entries.add(PANEL_SETTINGS_TOOL);
+            entries.add(AIR_FIXATION_TOOL);
         });
 
+        AirFixationConfig.load();
         BreakRulesConfig.load();
         RoundRestoreConfig.load();
         HologramConfig.load();
         PanelSettingsConfig.load();
+        AirFixationNetworking.register();
         BlockRulesNetworking.register();
         RoundRestoreNetworking.register();
         HologramNetworking.register();
@@ -67,9 +77,7 @@ public final class ImbaExtension implements ModInitializer {
         RoundRestoreToolHandler.register();
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (!world.isClient && GameRoles.isHider(player) && GameManager.isCurrentParticipant(player)) {
-                return ActionResult.FAIL;
-            }
+            if (!world.isClient && GameRoles.isHider(player) && GameManager.isCurrentParticipant(player)) return ActionResult.FAIL;
             return ActionResult.PASS;
         });
 
@@ -87,8 +95,7 @@ public final class ImbaExtension implements ModInitializer {
                             RoundRestoreConfig.restoreEnabled(server);
                             GameManager.stopStandaloneTimer(server);
                         }
-                        server.getPlayerManager().broadcast(
-                                Text.literal("§cИгра аварийно завершена администратором"), false);
+                        server.getPlayerManager().broadcast(Text.literal("§cИгра аварийно завершена администратором"), false);
                         return 1;
                     }));
 
@@ -100,22 +107,18 @@ public final class ImbaExtension implements ModInitializer {
                             ctx.getSource().sendFeedback(() -> Text.literal("§eНет сохранённых элементов для восстановления"), false);
                             return 0;
                         }
-                        ctx.getSource().sendFeedback(() -> Text.literal(
-                                "§aЛокации восстановлены §7• точек: §f" + result.points()
-                                        + " §7• слоёв: §f" + result.layers()
-                                        + " §7• блоков всего: §f" + result.blocks()), true);
+                        ctx.getSource().sendFeedback(() -> Text.literal("§aЛокации восстановлены §7• точек: §f" + result.points()
+                                + " §7• слоёв: §f" + result.layers() + " §7• блоков всего: §f" + result.blocks()), true);
                         return 1;
                     }));
 
             dispatcher.register(net.minecraft.server.command.CommandManager.literal("imba_start_game")
                     .requires(source -> source.hasPermissionLevel(2))
-                    .then(net.minecraft.server.command.CommandManager.argument(
-                                    "location", StringArgumentType.greedyString())
+                    .then(net.minecraft.server.command.CommandManager.argument("location", StringArgumentType.greedyString())
                             .suggests((ctx, builder) -> {
                                 for (var round : GameConfig.ROUNDS) {
                                     if (round.locationName != null && !round.locationName.isBlank()) {
-                                        String value = round.locationName.contains(" ")
-                                                ? "\"" + round.locationName + "\"" : round.locationName;
+                                        String value = round.locationName.contains(" ") ? "\"" + round.locationName + "\"" : round.locationName;
                                         builder.suggest(value);
                                     }
                                 }
@@ -127,22 +130,16 @@ public final class ImbaExtension implements ModInitializer {
                                 int found = -1;
                                 for (int i = 0; i < GameConfig.ROUNDS.size(); i++) {
                                     var round = GameConfig.ROUNDS.get(i);
-                                    if (requested.equals(normalizeLocation(round.locationName))
-                                            || requested.equals(normalizeLocation(round.id))) {
-                                        found = i;
-                                        break;
-                                    }
+                                    if (requested.equals(normalizeLocation(round.locationName)) || requested.equals(normalizeLocation(round.id))) { found = i; break; }
                                 }
                                 if (found < 0) {
-                                    ctx.getSource().sendError(Text.literal(
-                                            "Локация не найдена: " + stripOuterQuotes(raw).trim()));
+                                    ctx.getSource().sendError(Text.literal("Локация не найдена: " + stripOuterQuotes(raw).trim()));
                                     return 0;
                                 }
                                 GameConfig.setSelectedLocation(found);
                                 GameSettingsConfig.save();
                                 MaskNetworking.broadcastPanelData(ctx.getSource().getServer());
-                                ServerPlayerEntity starter = ctx.getSource().getEntity() instanceof ServerPlayerEntity p
-                                        ? p : null;
+                                ServerPlayerEntity starter = ctx.getSource().getEntity() instanceof ServerPlayerEntity p ? p : null;
                                 GameManager.startNextRound(ctx.getSource().getServer(), starter);
                                 return 1;
                             })));
@@ -160,12 +157,8 @@ public final class ImbaExtension implements ModInitializer {
     private static String stripOuterQuotes(String value) {
         String clean = value == null ? "" : value.trim();
         if (clean.length() >= 2) {
-            char first = clean.charAt(0);
-            char last = clean.charAt(clean.length() - 1);
-            boolean quoted = (first == '"' && last == '"')
-                    || (first == '\'' && last == '\'')
-                    || (first == '«' && last == '»')
-                    || (first == '“' && last == '”');
+            char first = clean.charAt(0), last = clean.charAt(clean.length() - 1);
+            boolean quoted = (first == '"' && last == '"') || (first == '\'' && last == '\'') || (first == '«' && last == '»') || (first == '“' && last == '”');
             if (quoted) clean = clean.substring(1, clean.length() - 1);
         }
         return clean;

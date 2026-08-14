@@ -10,77 +10,11 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
-/** Small square, fixed-orientation, depth-tested location holograms. */
 public final class LocationHologramRenderer {
-    private static final float BASE_SIZE = 0.78F;
-
-    private LocationHologramRenderer() {}
-
-    public static void register() {
-        WorldRenderEvents.AFTER_ENTITIES.register(ctx -> {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.world == null || client.player == null || ctx.matrixStack() == null || ctx.consumers() == null) return;
-            String worldId = client.world.getRegistryKey().getValue().toString();
-            var camera = client.gameRenderer.getCamera().getPos();
-
-            for (var projector : HologramClientData.snapshot()) {
-                if (!worldId.equals(projector.world())) continue;
-                MatrixStack matrices = ctx.matrixStack();
-                matrices.push();
-                matrices.translate(projector.x() - camera.x, projector.y() - camera.y, projector.z() - camera.z);
-                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-projector.yaw()));
-
-                float scale = Math.max(0.20F, projector.scale());
-                float size = BASE_SIZE * scale;
-                float half = size / 2.0F;
-                int intensity = Math.max(48, Math.min(255, 48 + Math.round((207.0F * projector.light()) / 15.0F)));
-                Identifier texture = ClientLocationPhotos.texture(projector.location());
-
-                VertexConsumer vertices = ctx.consumers().getBuffer(RenderLayer.getEntityTranslucentEmissive(texture));
-                quad(vertices, matrices, -half, -half, half, half, 0.0F, intensity, false);
-                quad(vertices, matrices, -half, -half, half, half, -0.002F, intensity, true);
-
-                String title = PanelData.locationName(projector.location());
-                if (title != null && !title.isBlank()) {
-                    matrices.push();
-                    matrices.translate(0.0D, -half - 0.12F, 0.012F);
-                    float textScale = 0.0135F * Math.max(0.85F, scale);
-                    matrices.scale(textScale, -textScale, textScale);
-                    float width = client.textRenderer.getWidth(title);
-                    client.textRenderer.draw(title, -width / 2.0F, 0.0F, 0xFFFFFFFF, false,
-                            matrices.peek().getPositionMatrix(), ctx.consumers(), TextRenderer.TextLayerType.NORMAL,
-                            0xB0000000, LightmapTextureManager.MAX_LIGHT_COORDINATE);
-                    matrices.pop();
-                }
-                matrices.pop();
-            }
-        });
-    }
-
-    private static void quad(VertexConsumer vertices, MatrixStack matrices,
-                             float left, float bottom, float right, float top, float z, int intensity, boolean reverse) {
-        MatrixStack.Entry entry = matrices.peek();
-        if (!reverse) {
-            vertex(vertices, entry, left, bottom, z, 0, 1, intensity, 1);
-            vertex(vertices, entry, right, bottom, z, 1, 1, intensity, 1);
-            vertex(vertices, entry, right, top, z, 1, 0, intensity, 1);
-            vertex(vertices, entry, left, top, z, 0, 0, intensity, 1);
-        } else {
-            vertex(vertices, entry, right, bottom, z, 0, 1, intensity, -1);
-            vertex(vertices, entry, left, bottom, z, 1, 1, intensity, -1);
-            vertex(vertices, entry, left, top, z, 1, 0, intensity, -1);
-            vertex(vertices, entry, right, top, z, 0, 0, intensity, -1);
-        }
-    }
-
-    private static void vertex(VertexConsumer vertices, MatrixStack.Entry entry,
-                               float x, float y, float z, float u, float v, int intensity, int normalZ) {
-        vertices.vertex(entry.getPositionMatrix(), x, y, z)
-                .color(intensity, intensity, intensity, 255)
-                .texture(u, v)
-                .overlay(net.minecraft.client.render.OverlayTexture.DEFAULT_UV)
-                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
-                .normal(entry.getNormalMatrix(), 0, 0, normalZ)
-                .next();
-    }
+    private static final float BASE_SIZE=.78F;
+    private static final Identifier DARK_BACKING=new Identifier("minecraft","textures/block/black_concrete.png");
+    private LocationHologramRenderer(){}
+    public static void register(){WorldRenderEvents.AFTER_ENTITIES.register(ctx->{MinecraftClient client=MinecraftClient.getInstance();if(client.world==null||client.player==null||ctx.matrixStack()==null||ctx.consumers()==null)return;String worldId=client.world.getRegistryKey().getValue().toString();var camera=client.gameRenderer.getCamera().getPos();for(var p:HologramClientData.snapshot()){if(!worldId.equals(p.world()))continue;MatrixStack m=ctx.matrixStack();m.push();m.translate(p.x()-camera.x,p.y()-camera.y,p.z()-camera.z);m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-p.yaw()));float scale=Math.max(.20F,p.scale()),size=BASE_SIZE*scale,half=size/2;Identifier texture=ClientLocationPhotos.hologramTexture(p.location(),p.light());VertexConsumer backing=ctx.consumers().getBuffer(RenderLayer.getEntityCutoutNoCull(DARK_BACKING));quad(backing,m,-half-.006F,-half-.006F,half+.006F,half+.006F,-.004F,false);quad(backing,m,-half-.006F,-half-.006F,half+.006F,half+.006F,-.006F,true);VertexConsumer photo=ctx.consumers().getBuffer(RenderLayer.getEntityCutoutNoCull(texture));quad(photo,m,-half,-half,half,half,0,false);quad(photo,m,-half,-half,half,half,-.002F,true);String title=PanelData.locationName(p.location());if(title!=null&&!title.isBlank()){m.push();m.translate(0,-half-.105F,.014F);float ts=.0145F*Math.max(.88F,scale);m.scale(ts,-ts,ts);float w=client.textRenderer.getWidth(title);client.textRenderer.draw(title,-w/2,0,0xFFFFFFFF,false,m.peek().getPositionMatrix(),ctx.consumers(),TextRenderer.TextLayerType.NORMAL,0xFF050505,LightmapTextureManager.MAX_LIGHT_COORDINATE);m.pop();}m.pop();}});}
+    private static void quad(VertexConsumer v,MatrixStack m,float l,float b,float r,float t,float z,boolean reverse){var e=m.peek();if(!reverse){vertex(v,e,l,b,z,0,1,1);vertex(v,e,r,b,z,1,1,1);vertex(v,e,r,t,z,1,0,1);vertex(v,e,l,t,z,0,0,1);}else{vertex(v,e,r,b,z,0,1,-1);vertex(v,e,l,b,z,1,1,-1);vertex(v,e,l,t,z,1,0,-1);vertex(v,e,r,t,z,0,0,-1);}}
+    private static void vertex(VertexConsumer v,MatrixStack.Entry e,float x,float y,float z,float u,float vv,int nz){v.vertex(e.getPositionMatrix(),x,y,z).color(255,255,255,255).texture(u,vv).overlay(net.minecraft.client.render.OverlayTexture.DEFAULT_UV).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).normal(e.getNormalMatrix(),0,0,nz).next();}
 }
