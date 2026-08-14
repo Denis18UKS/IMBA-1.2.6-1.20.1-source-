@@ -42,7 +42,7 @@ public final class MaskAutoPositionScreen extends Screen {
     private BlockEntry selectedSupport;
 
     public MaskAutoPositionScreen() {
-        super(Text.literal("Автопозиция: маска + блок под ней"));
+        super(Text.literal("Автопозиция: маскировка + блок под ней"));
         for (Block block : Registries.BLOCK) {
             Identifier id = Registries.BLOCK.getId(block);
             if (id != null) {
@@ -60,8 +60,8 @@ public final class MaskAutoPositionScreen extends Screen {
         int columnWidth = columnWidth();
 
         maskSearchField = new TextFieldWidget(textRenderer, left + 12, 38, columnWidth - 18, 20,
-                Text.literal("Поиск маски"));
-        maskSearchField.setPlaceholder(Text.literal("Маска: название или ID..."));
+                Text.literal("Поиск маскировки"));
+        maskSearchField.setPlaceholder(Text.literal("Маскировка: название или ID..."));
         maskSearchField.setMaxLength(128);
         maskSearchField.setChangedListener(value -> {
             rebuildMasks();
@@ -71,7 +71,7 @@ public final class MaskAutoPositionScreen extends Screen {
 
         supportSearchField = new TextFieldWidget(textRenderer, left + columnWidth + 6, 38,
                 columnWidth - 18, 20, Text.literal("Поиск опоры"));
-        supportSearchField.setPlaceholder(Text.literal("Блок под маской: название или ID..."));
+        supportSearchField.setPlaceholder(Text.literal("Блок под маскировкой: название или ID..."));
         supportSearchField.setMaxLength(128);
         supportSearchField.setChangedListener(value -> {
             rebuildSupports();
@@ -173,7 +173,7 @@ public final class MaskAutoPositionScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 11, 0xFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
                 synced
-                        ? "Выбери маску и блок под ней. 1 px = 1/16 блока. Поправка применяется после обычного снапа."
+                        ? "Выбери маскировку и блок под ней. 1 px = 1/16 блока. Поправка применяется после обычного снапа."
                         : "Получение конфигурации с сервера...",
                 width / 2, 24, synced ? 0xAAAAAA : 0xFFFF55);
 
@@ -247,7 +247,7 @@ public final class MaskAutoPositionScreen extends Screen {
 
         if (selectedMask == null || selectedSupport == null) {
             context.drawCenteredTextWithShadow(textRenderer,
-                    Text.literal("Выбери слева маску, справа блок, на котором она стоит"),
+                    Text.literal("Выбери слева маскировку, справа блок, на котором она стоит"),
                     width / 2, top + 27, 0xAAAAAA);
             return;
         }

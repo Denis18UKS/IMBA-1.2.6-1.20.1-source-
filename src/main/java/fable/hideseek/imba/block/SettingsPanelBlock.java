@@ -76,8 +76,6 @@ public final class SettingsPanelBlock extends Block {
         int column = state.get(COLUMN), direction = state.get(ROW) == 1 ? 1 : -1;
         if (column == 0) {
             GameConfig.setRoundSeconds(Math.max(30, Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
-        } else if (column == 1) {
-            GameConfig.setSelectedLocation(GameConfig.SELECTED_LOCATION + direction);
         } else if (column == 2) {
             GameConfig.setSeekerHearts(Math.max(1, Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
         }

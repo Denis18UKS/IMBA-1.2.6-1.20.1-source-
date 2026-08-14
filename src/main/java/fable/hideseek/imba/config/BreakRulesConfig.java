@@ -11,36 +11,48 @@ import net.minecraft.util.Identifier;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/** Persistent map block rules. */
 public final class BreakRulesConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_break_rules.json");
-    private static final Set<Identifier> NO_PENALTY_BREAK_BLOCKS = new HashSet<>();
-
+    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_block_rules.json");
+    private static final Path LEGACY_PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_break_rules.json");
+    private static final Set<Identifier> ADVENTURE_BREAK_BLOCKS = new HashSet<>();
+    private static final Set<Identifier> INTERACTIVE_EXCEPTIONS = new HashSet<>();
     private BreakRulesConfig() {}
-
     public static void load() {
-        NO_PENALTY_BREAK_BLOCKS.clear();
-        if (!Files.exists(PATH)) { NO_PENALTY_BREAK_BLOCKS.add(Registries.BLOCK.getId(Blocks.BREWING_STAND)); save(); return; }
-        try {
-            Data data = GSON.fromJson(Files.readString(PATH), Data.class);
-            if (data != null && data.noPenaltyBreakBlocks != null) {
-                for (String id : data.noPenaltyBreakBlocks) NO_PENALTY_BREAK_BLOCKS.add(new Identifier(id));
-            }
-        } catch (IOException | RuntimeException e) { NO_PENALTY_BREAK_BLOCKS.add(Registries.BLOCK.getId(Blocks.BREWING_STAND)); }
-        // This is a mandatory gameplay rule for the 2D-potion location even
-        // when an older config file did not yet contain the entry.
-        NO_PENALTY_BREAK_BLOCKS.add(Registries.BLOCK.getId(Blocks.BREWING_STAND));
+        ADVENTURE_BREAK_BLOCKS.clear(); INTERACTIVE_EXCEPTIONS.clear();
+        Identifier brewing = Registries.BLOCK.getId(Blocks.BREWING_STAND); ADVENTURE_BREAK_BLOCKS.add(brewing);
+        Path source = Files.exists(PATH) ? PATH : LEGACY_PATH;
+        if (Files.exists(source)) {
+            try {
+                Data data = GSON.fromJson(Files.readString(source), Data.class);
+                if (data != null) {
+                    List<String> breakIds = data.adventureBreakBlocks != null ? data.adventureBreakBlocks : data.noPenaltyBreakBlocks;
+                    readIds(breakIds, ADVENTURE_BREAK_BLOCKS); readIds(data.interactiveExceptions, INTERACTIVE_EXCEPTIONS);
+                }
+            } catch (IOException | RuntimeException e) { System.err.println("[IMBA] Не удалось загрузить правила блоков: " + e.getMessage()); }
+        }
+        ADVENTURE_BREAK_BLOCKS.add(brewing); save();
     }
-
+    private static void readIds(List<String> values, Set<Identifier> target) {
+        if (values == null) return; for (String raw : values) { Identifier id = Identifier.tryParse(raw); if (id != null && Registries.BLOCK.containsId(id)) target.add(id); }
+    }
     public static void save() {
-        try { Files.createDirectories(PATH.getParent()); Files.writeString(PATH, GSON.toJson(new Data(NO_PENALTY_BREAK_BLOCKS.stream().map(Identifier::toString).toList()))); }
-        catch (IOException ignored) {}
+        Data data = new Data(ADVENTURE_BREAK_BLOCKS.stream().map(Identifier::toString).sorted().toList(), INTERACTIVE_EXCEPTIONS.stream().map(Identifier::toString).sorted().toList(), null);
+        try { Files.createDirectories(PATH.getParent()); Path temporary = PATH.resolveSibling(PATH.getFileName() + ".tmp"); Files.writeString(temporary, GSON.toJson(data)); Files.move(temporary, PATH, StandardCopyOption.REPLACE_EXISTING); }
+        catch (IOException e) { System.err.println("[IMBA] Не удалось сохранить правила блоков: " + e.getMessage()); }
     }
-
-    public static boolean shouldPunishForBreak(Block block) { return !NO_PENALTY_BREAK_BLOCKS.contains(Registries.BLOCK.getId(block)); }
-    private record Data(List<String> noPenaltyBreakBlocks) {}
+    public static boolean shouldPunishForBreak(Block block) { return !isAdventureBreakAllowed(block); }
+    public static boolean isAdventureBreakAllowed(Block block) { return block != null && ADVENTURE_BREAK_BLOCKS.contains(Registries.BLOCK.getId(block)); }
+    public static boolean isInteractiveAllowed(Block block) { return block != null && INTERACTIVE_EXCEPTIONS.contains(Registries.BLOCK.getId(block)); }
+    public static void setAdventureBreakAllowed(Identifier id, boolean allowed) { if (id == null || !Registries.BLOCK.containsId(id)) return; if (allowed) ADVENTURE_BREAK_BLOCKS.add(id); else ADVENTURE_BREAK_BLOCKS.remove(id); ADVENTURE_BREAK_BLOCKS.add(Registries.BLOCK.getId(Blocks.BREWING_STAND)); save(); }
+    public static void setInteractiveAllowed(Identifier id, boolean allowed) { if (id == null || !Registries.BLOCK.containsId(id)) return; if (allowed) INTERACTIVE_EXCEPTIONS.add(id); else INTERACTIVE_EXCEPTIONS.remove(id); save(); }
+    public static Set<String> adventureBreakSnapshot() { return ADVENTURE_BREAK_BLOCKS.stream().map(Identifier::toString).collect(java.util.stream.Collectors.toUnmodifiableSet()); }
+    public static Set<String> interactiveExceptionsSnapshot() { return INTERACTIVE_EXCEPTIONS.stream().map(Identifier::toString).collect(java.util.stream.Collectors.toUnmodifiableSet()); }
+    private static final class Data { List<String> adventureBreakBlocks; List<String> interactiveExceptions; List<String> noPenaltyBreakBlocks; Data(List<String> a,List<String> i,List<String> n){adventureBreakBlocks=a;interactiveExceptions=i;noPenaltyBreakBlocks=n;} }
 }

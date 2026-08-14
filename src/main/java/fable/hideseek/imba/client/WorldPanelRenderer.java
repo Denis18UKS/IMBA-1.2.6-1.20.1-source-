@@ -96,66 +96,26 @@ public final class WorldPanelRenderer {
         Direction facing = anchor.facing();
         begin(matrices, pos, facing, 2, client);
 
-        int[] columnX = {-46, 0, 46};
-        String[] headers = {"Таймер", "Локация", "Количество"};
-        float sharedHeaderScale = sharedScale(client.textRenderer, headers, HEADER_MAX_WIDTH);
+        // The location selector was moved out of this panel. Use the freed space
+        // for two larger, balanced controls while keeping the placed 3x2 block
+        // footprint backwards-compatible. Physical clicks remain on the outer
+        // columns (0 = timer, 2 = seeker hearts).
+        int timerX = -38;
+        int heartsX = 38;
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "Таймер", timerX, -30, 1.30F, 0xFFFFAA00);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "Жизни искателей", heartsX, -30, 1.08F, 0xFFFFAA00);
 
-        for (int i = 0; i < headers.length; i++) {
-            drawCenteredAtScale(
-                    matrices,
-                    consumers,
-                    client.textRenderer,
-                    headers[i],
-                    columnX[i],
-                    HEADER_Y,
-                    sharedHeaderScale,
-                    0xFFFFAA00);
-        }
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", timerX, -12, 1.45F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", heartsX, -12, 1.45F, 0xFFFFFFFF);
 
-        for (int x : columnX) {
-            drawCentered(matrices, consumers, client.textRenderer, "▲", x, TOP_ARROW_Y, 0xFFFFFFFF);
-        }
-
-        drawCentered(
-                matrices,
-                consumers,
-                client.textRenderer,
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
                 String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60),
-                columnX[0],
-                -2,
-                0xFFFFFFFF);
+                timerX, 8, 1.60F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "❤ " + PanelData.hearts, heartsX, 8, 1.60F, 0xFFFF5555);
 
-        drawPhoto(
-                matrices,
-                consumers,
-                ClientLocationPhotos.texture(PanelData.selectedLocation),
-                -12,
-                PHOTO_TOP,
-                12,
-                PHOTO_BOTTOM);
-
-        drawLocationName(
-                matrices,
-                consumers,
-                client.textRenderer,
-                PanelData.locationName(PanelData.selectedLocation),
-                columnX[1],
-                LOCATION_MAX_WIDTH,
-                0xFFFFFFFF);
-
-        drawCentered(
-                matrices,
-                consumers,
-                client.textRenderer,
-                "❤ " + PanelData.hearts,
-                columnX[2],
-                -2,
-                0xFFFF5555);
-
-        for (int x : columnX) {
-            drawCentered(matrices, consumers, client.textRenderer, "▼", x, BOTTOM_ARROW_Y, 0xFFFFFFFF);
-        }
-
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", timerX, 31, 1.45F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", heartsX, 31, 1.45F, 0xFFFFFFFF);
         matrices.pop();
     }
 
@@ -265,62 +225,29 @@ public final class WorldPanelRenderer {
             float maximumWidth,
             int color) {
         String value = text == null ? "" : text.trim();
-        if (value.isEmpty()) {
-            return;
-        }
-
+        if (value.isEmpty()) return;
         if (renderer.getWidth(value) <= maximumWidth) {
             drawCentered(matrices, consumers, renderer, value, centerX, SINGLE_LOCATION_Y, color);
             return;
         }
-
         int split = bestSplit(value);
         if (split <= 0 || split >= value.length()) {
-            drawScaledCentered(
-                    matrices,
-                    consumers,
-                    renderer,
-                    value,
-                    centerX,
-                    SINGLE_LOCATION_Y,
-                    maximumWidth,
-                    color);
+            drawScaledCentered(matrices, consumers, renderer, value, centerX, SINGLE_LOCATION_Y, maximumWidth, color);
             return;
         }
-
         String first = value.substring(0, split).trim();
         String second = value.substring(split).trim();
-        drawScaledCentered(
-                matrices,
-                consumers,
-                renderer,
-                first,
-                centerX,
-                FIRST_LOCATION_LINE_Y,
-                maximumWidth,
-                color);
-        drawScaledCentered(
-                matrices,
-                consumers,
-                renderer,
-                second,
-                centerX,
-                SECOND_LOCATION_LINE_Y,
-                maximumWidth,
-                color);
+        drawScaledCentered(matrices, consumers, renderer, first, centerX, FIRST_LOCATION_LINE_Y, maximumWidth, color);
+        drawScaledCentered(matrices, consumers, renderer, second, centerX, SECOND_LOCATION_LINE_Y, maximumWidth, color);
     }
 
     private static int bestSplit(String value) {
         int middle = value.length() / 2;
         for (int offset = 0; offset < value.length(); offset++) {
             int left = middle - offset;
-            if (left > 0 && Character.isWhitespace(value.charAt(left))) {
-                return left;
-            }
+            if (left > 0 && Character.isWhitespace(value.charAt(left))) return left;
             int right = middle + offset;
-            if (right < value.length() && Character.isWhitespace(value.charAt(right))) {
-                return right;
-            }
+            if (right < value.length() && Character.isWhitespace(value.charAt(right))) return right;
         }
         return -1;
     }

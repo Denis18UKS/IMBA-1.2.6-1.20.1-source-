@@ -1,0 +1,4 @@
+package fable.hideseek.imba.mixin;
+import fable.hideseek.imba.game.GameManager;import fable.hideseek.imba.game.GameRoles;import net.minecraft.entity.Entity;import net.minecraft.entity.damage.DamageSource;import net.minecraft.entity.player.PlayerEntity;import org.spongepowered.asm.mixin.Mixin;import org.spongepowered.asm.mixin.injection.At;import org.spongepowered.asm.mixin.injection.Inject;import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+/** Server-side backstop: a current hider cannot damage any entity by any vanilla damage source. */
+@Mixin(Entity.class) public abstract class HiderDamageMixin {@Inject(method="damage",at=@At("HEAD"),cancellable=true)private void imba$blockHiderDamage(DamageSource source,float amount,CallbackInfoReturnable<Boolean> cir){Entity attacker=source.getAttacker();if(attacker instanceof PlayerEntity player&&GameRoles.isHider(player)&&GameManager.isCurrentParticipant(player))cir.setReturnValue(false);}}

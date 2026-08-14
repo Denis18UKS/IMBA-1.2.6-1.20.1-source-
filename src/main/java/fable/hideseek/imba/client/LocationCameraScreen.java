@@ -92,7 +92,7 @@ public final class LocationCameraScreen extends Screen {
                 .dimensions(left, top + 182, 212, 20).build());
 
         searchField = new TextFieldWidget(textRenderer, right, top + 38, 216, 20,
-                Text.literal("Поиск маски"));
+                Text.literal("Поиск маскировки"));
         searchField.setMaxLength(64);
         searchField.setPlaceholder(Text.literal("Поиск по-русски или по идентификатору"));
         searchField.setChangedListener(value -> {
@@ -277,8 +277,8 @@ public final class LocationCameraScreen extends Screen {
                 ClientLocationPhotos.has(location) ? "Фото сохранено" : "Фото отсутствует",
                 left, top + 207, ClientLocationPhotos.has(location) ? 0x55FF55 : 0xAAAAAA);
         context.drawTextWithShadow(textRenderer,
-                "Маска: " + selectedMaskLabel(), right, top + 3, 0xFFFFFF);
-        context.drawTextWithShadow(textRenderer, "Поиск маски", right, top + 27, 0xAAAAAA);
+                "Маскировка: " + selectedMaskLabel(), right, top + 3, 0xFFFFFF);
+        context.drawTextWithShadow(textRenderer, "Поиск маскировки", right, top + 27, 0xAAAAAA);
         context.drawTextWithShadow(textRenderer,
                 "Найдено: " + filteredMasks.size(), right, top + 187, 0xAAAAAA);
         super.render(context, mouseX, mouseY, delta);
