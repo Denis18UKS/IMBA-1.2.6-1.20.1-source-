@@ -59,8 +59,6 @@ public final class ImbaExtension implements ModInitializer {
         HologramNetworking.register();
         RoundRestoreToolHandler.register();
 
-        // A hider never gets to use vanilla entity attacks. The damage mixin below
-        // is the second server-side safety net for indirect/projectile damage.
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
             if (!world.isClient && GameRoles.isHider(player) && GameManager.isCurrentParticipant(player)) {
                 return ActionResult.FAIL;
@@ -76,8 +74,11 @@ public final class ImbaExtension implements ModInitializer {
                     .requires(source -> source.hasPermissionLevel(2))
                     .executes(ctx -> {
                         var server = ctx.getSource().getServer();
-                        RoundRestoreConfig.restoreAll(server);
+                        // Active rounds go through GameManager's existing reset/cleanup pipeline;
+                        // the round-end mixin performs restoration exactly once there. When the
+                        // game is already idle, still allow this command to repair the saved map.
                         if (!GameManager.resetRound(server)) {
+                            RoundRestoreConfig.restoreAll(server);
                             GameManager.stopStandaloneTimer(server);
                         }
                         server.getPlayerManager().broadcast(
@@ -88,7 +89,7 @@ public final class ImbaExtension implements ModInitializer {
             dispatcher.register(net.minecraft.server.command.CommandManager.literal("imba_start_game")
                     .requires(source -> source.hasPermissionLevel(2))
                     .then(net.minecraft.server.command.CommandManager.argument(
-                                    "location", StringArgumentType.greedyString())
+                                    "location", StringArgumentType.string())
                             .suggests((ctx, builder) -> {
                                 for (var round : GameConfig.ROUNDS) {
                                     if (round.locationName != null && !round.locationName.isBlank()) {
