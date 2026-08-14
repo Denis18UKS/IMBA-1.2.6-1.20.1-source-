@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
@@ -73,11 +74,23 @@ public abstract class GameManagerExtensionMixin {
         }
     }
 
-    @Inject(method = "damageSeekerHeart", at = @At("TAIL"), remap = false)
-    private static void imba$finishWhenEverySeekerIsOut(ServerPlayerEntity seeker, String message, CallbackInfo ci) {
-        if (seeker == null || currentSeekers.isEmpty() || !eliminatedSeekers.containsAll(currentSeekers)) return;
-        MinecraftServer server = seeker.getServer();
-        if (server != null) finishHiderWinByHearts(server);
+    /**
+     * Vanilla IMBA used only the currently-online seekers for this decision.
+     * Intercept that win call and use the complete assigned-seeker UUID set,
+     * so the game ends exactly when every assigned seeker has actually lost
+     * all hearts, without a duplicate beginReturn call from a second hook.
+     */
+    @Redirect(
+            method = "damageSeekerHeart",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lfable/hideseek/imba/game/GameManager;finishHiderWinByHearts(Lnet/minecraft/server/MinecraftServer;)V",
+                    remap = false),
+            remap = false)
+    private static void imba$finishOnlyAfterAllAssignedSeekers(MinecraftServer server) {
+        if (!currentSeekers.isEmpty() && eliminatedSeekers.containsAll(currentSeekers)) {
+            finishHiderWinByHearts(server);
+        }
     }
 
     @Inject(method = "beginReturn", at = @At("HEAD"), remap = false)
