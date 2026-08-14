@@ -29,6 +29,11 @@ public abstract class HideButtonSafetyMixin {
             double x=Math.floor(player.getX())+.5D,y=surface,z=Math.floor(player.getZ())+.5D;Box target=MaskHitbox.getDimensions(state.type,state.item).getBoxAt(new Vec3d(x,y,z));if(!player.getWorld().isSpaceEmpty(player,target)){player.sendMessage(Text.literal("§cЗдесь недостаточно места для фиксации маскировки"),true);ci.cancel();}}
     }
     @Redirect(method="handle",at=@At(value="INVOKE",target="Lnet/minecraft/server/network/ServerPlayerEntity;requestTeleport(DDD)V"))
-    private static void imba$teleportWithoutClientRubberBand(ServerPlayerEntity player,double x,double y,double z){player.teleport(player.getServerWorld(),x,y,z,player.getYaw(),player.getPitch());}
+    private static void imba$anchorWithoutVanillaTeleport(ServerPlayerEntity player,double x,double y,double z){
+        // Same-world fixation is synchronized by STATUE_SYNC. Avoid a second
+        // vanilla teleport/ack path, which caused a visible rubber-band when
+        // the ability was pressed while movement packets were still in flight.
+        player.setPosition(x,y,z);
+    }
     @Unique private static double imba$findSurfaceY(ServerPlayerEntity player){double x=player.getX(),z=player.getZ(),feet=player.getBoundingBox().minY;for(int d=0;d<=1;d++){BlockPos pos=BlockPos.ofFloored(x,feet-.01D-d,z);BlockState state=player.getWorld().getBlockState(pos);VoxelShape shape=state.getCollisionShape(player.getWorld(),pos);if(shape.isEmpty())continue;double lx=x-pos.getX(),lz=z-pos.getZ(),top=Double.NEGATIVE_INFINITY;for(Box box:shape.getBoundingBoxes())if(lx>=box.minX-1e-6&&lx<=box.maxX+1e-6&&lz>=box.minZ-1e-6&&lz<=box.maxZ+1e-6)top=Math.max(top,box.maxY);if(!Double.isFinite(top))top=shape.getMax(Direction.Axis.Y);return pos.getY()+top;}return Double.NaN;}
 }

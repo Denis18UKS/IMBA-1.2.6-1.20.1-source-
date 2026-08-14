@@ -5,18 +5,26 @@ import fable.hideseek.imba.mask.MaskType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.TypedActionResult;
 
 /** Client half of the extra admin/gameplay tools. */
 public final class ImbaClientExtension implements ClientModInitializer {
-    private int hintTicks;
+    private static final int HINT_DURATION_TICKS = 100;
+    private static final int HINT_REFRESH_TICKS = 40;
+
+    private int hintRemaining;
+    private int hintRefresh;
+    private String lastMaskSignature = "";
+    private boolean lastClimbEnabled = true;
 
     @Override
     public void onInitializeClient() {
         BlockRulesClientNetworking.register();
         RoundRestoreClientNetworking.register();
         HologramClientNetworking.register();
+        PanelSettingsClientNetworking.register();
         LocationHologramRenderer.register();
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
@@ -25,6 +33,10 @@ public final class ImbaClientExtension implements ClientModInitializer {
             var client = net.minecraft.client.MinecraftClient.getInstance();
             if (stack.isOf(ImbaExtension.BLOCK_RULES_TOOL)) {
                 client.setScreen(new BlockRulesScreen());
+                return TypedActionResult.success(stack);
+            }
+            if (stack.isOf(ImbaExtension.BLOCK_RESTORE_TOOL)) {
+                client.setScreen(new BlockRestoreScreen());
                 return TypedActionResult.success(stack);
             }
             if (stack.isOf(ImbaExtension.STRUCTURE_LAYER_TOOL)) {
@@ -39,22 +51,64 @@ public final class ImbaClientExtension implements ClientModInitializer {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player == null || --hintTicks > 0) return;
-            hintTicks = 20;
-            var uuid = client.player.getUuid();
-            if (!ClientMaskData.hasMask(uuid) || KeyBindings.rotateKey == null) return;
+            if (client.player == null) {
+                resetHints();
+                return;
+            }
 
-            String rotate = KeyBindings.rotateKey.getBoundKeyLocalizedText().getString();
-            StringBuilder hint = new StringBuilder("Нажмите ").append(rotate).append(", чтобы крутиться");
+            var uuid = client.player.getUuid();
+            if (!ClientMaskData.hasMask(uuid) || KeyBindings.rotateKey == null) {
+                if (!lastMaskSignature.isEmpty()) client.player.sendMessage(Text.empty(), true);
+                resetHints();
+                return;
+            }
+
             MaskType type = ClientMaskData.TYPES.get(uuid);
+            String block = ClientMaskData.BLOCKS.get(uuid) == null ? "" : Registries.BLOCK.getId(ClientMaskData.BLOCKS.get(uuid)).toString();
+            String item = ClientMaskData.ITEMS.get(uuid) == null ? "" : Registries.ITEM.getId(ClientMaskData.ITEMS.get(uuid)).toString();
+            String signature = String.valueOf(type) + '|' + block + '|' + item;
+
             boolean canClimb = type == MaskType.WALL_CLIMB
                     || type == MaskType.BLOCK && ClientMaskData.BLOCKS.get(uuid) == ImbaMod.GLOWBERRIES;
-            if (canClimb && !WallClimbClientNetworking.isEnabled(uuid) && KeyBindings.wallClimbKey != null) {
-                hint.append("  •  ")
-                        .append(KeyBindings.wallClimbKey.getBoundKeyLocalizedText().getString())
-                        .append(" — включить ползание");
+            boolean climbEnabled = !canClimb || WallClimbClientNetworking.isEnabled(uuid);
+
+            if (!signature.equals(lastMaskSignature)
+                    || (canClimb && lastClimbEnabled && !climbEnabled)) {
+                hintRemaining = HINT_DURATION_TICKS;
+                hintRefresh = 0;
             }
-            client.player.sendMessage(Text.literal(hint.toString()), true);
+            lastMaskSignature = signature;
+            lastClimbEnabled = climbEnabled;
+
+            if (hintRemaining <= 0) return;
+
+            if (hintRefresh-- <= 0) {
+                client.player.sendMessage(Text.literal(buildHint(uuid, type, canClimb, climbEnabled)), true);
+                hintRefresh = HINT_REFRESH_TICKS;
+            }
+
+            hintRemaining--;
+            if (hintRemaining == 0) {
+                client.player.sendMessage(Text.empty(), true);
+            }
         });
+    }
+
+    private static String buildHint(java.util.UUID uuid, MaskType type, boolean canClimb, boolean climbEnabled) {
+        String rotate = KeyBindings.rotateKey.getBoundKeyLocalizedText().getString();
+        StringBuilder hint = new StringBuilder("Нажмите ").append(rotate).append(", чтобы крутиться");
+        if (canClimb && !climbEnabled && KeyBindings.wallClimbKey != null) {
+            hint.append("  •  ")
+                    .append(KeyBindings.wallClimbKey.getBoundKeyLocalizedText().getString())
+                    .append(" — включить ползание");
+        }
+        return hint.toString();
+    }
+
+    private void resetHints() {
+        hintRemaining = 0;
+        hintRefresh = 0;
+        lastMaskSignature = "";
+        lastClimbEnabled = true;
     }
 }

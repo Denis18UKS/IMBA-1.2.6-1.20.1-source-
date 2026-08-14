@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import fable.hideseek.imba.config.BreakRulesConfig;
 import fable.hideseek.imba.config.GameSettingsConfig;
 import fable.hideseek.imba.config.HologramConfig;
+import fable.hideseek.imba.config.PanelSettingsConfig;
 import fable.hideseek.imba.config.RoundRestoreConfig;
 import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.game.GameManager;
@@ -12,6 +13,7 @@ import fable.hideseek.imba.item.RoundRestoreToolHandler;
 import fable.hideseek.imba.net.BlockRulesNetworking;
 import fable.hideseek.imba.net.HologramNetworking;
 import fable.hideseek.imba.net.MaskNetworking;
+import fable.hideseek.imba.net.PanelSettingsNetworking;
 import fable.hideseek.imba.net.RoundRestoreNetworking;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -28,6 +30,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
+
+import java.text.Normalizer;
+import java.util.Locale;
 
 /** Extra admin/gameplay systems kept separate from the original core initializer. */
 public final class ImbaExtension implements ModInitializer {
@@ -54,9 +59,11 @@ public final class ImbaExtension implements ModInitializer {
         BreakRulesConfig.load();
         RoundRestoreConfig.load();
         HologramConfig.load();
+        PanelSettingsConfig.load();
         BlockRulesNetworking.register();
         RoundRestoreNetworking.register();
         HologramNetworking.register();
+        PanelSettingsNetworking.register();
         RoundRestoreToolHandler.register();
 
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
@@ -66,19 +73,18 @@ public final class ImbaExtension implements ModInitializer {
             return ActionResult.PASS;
         });
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                HologramNetworking.sendSync(handler.getPlayer()));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            HologramNetworking.sendSync(handler.getPlayer());
+            PanelSettingsNetworking.sendSync(handler.getPlayer());
+        });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(net.minecraft.server.command.CommandManager.literal("imba_termination")
                     .requires(source -> source.hasPermissionLevel(2))
                     .executes(ctx -> {
                         var server = ctx.getSource().getServer();
-                        // Active rounds go through GameManager's existing reset/cleanup pipeline;
-                        // the round-end mixin performs restoration exactly once there. When the
-                        // game is already idle, still allow this command to repair the saved map.
                         if (!GameManager.resetRound(server)) {
-                            RoundRestoreConfig.restoreAll(server);
+                            RoundRestoreConfig.restoreEnabled(server);
                             GameManager.stopStandaloneTimer(server);
                         }
                         server.getPlayerManager().broadcast(
@@ -86,32 +92,50 @@ public final class ImbaExtension implements ModInitializer {
                         return 1;
                     }));
 
+            dispatcher.register(net.minecraft.server.command.CommandManager.literal("imba_reset_locations")
+                    .requires(source -> source.hasPermissionLevel(2))
+                    .executes(ctx -> {
+                        var result = RoundRestoreConfig.restoreEnabled(ctx.getSource().getServer());
+                        if (!result.anythingRestored()) {
+                            ctx.getSource().sendFeedback(() -> Text.literal("§eНет сохранённых элементов для восстановления"), false);
+                            return 0;
+                        }
+                        ctx.getSource().sendFeedback(() -> Text.literal(
+                                "§aЛокации восстановлены §7• точек: §f" + result.points()
+                                        + " §7• слоёв: §f" + result.layers()
+                                        + " §7• блоков всего: §f" + result.blocks()), true);
+                        return 1;
+                    }));
+
             dispatcher.register(net.minecraft.server.command.CommandManager.literal("imba_start_game")
                     .requires(source -> source.hasPermissionLevel(2))
                     .then(net.minecraft.server.command.CommandManager.argument(
-                                    "location", StringArgumentType.string())
+                                    "location", StringArgumentType.greedyString())
                             .suggests((ctx, builder) -> {
                                 for (var round : GameConfig.ROUNDS) {
                                     if (round.locationName != null && !round.locationName.isBlank()) {
-                                        builder.suggest(round.locationName);
+                                        String value = round.locationName.contains(" ")
+                                                ? "\"" + round.locationName + "\"" : round.locationName;
+                                        builder.suggest(value);
                                     }
                                 }
                                 return builder.buildFuture();
                             })
                             .executes(ctx -> {
-                                String requested = StringArgumentType.getString(ctx, "location").trim();
+                                String raw = StringArgumentType.getString(ctx, "location");
+                                String requested = normalizeLocation(raw);
                                 int found = -1;
                                 for (int i = 0; i < GameConfig.ROUNDS.size(); i++) {
                                     var round = GameConfig.ROUNDS.get(i);
-                                    if (requested.equalsIgnoreCase(round.locationName)
-                                            || requested.equalsIgnoreCase(round.id)) {
+                                    if (requested.equals(normalizeLocation(round.locationName))
+                                            || requested.equals(normalizeLocation(round.id))) {
                                         found = i;
                                         break;
                                     }
                                 }
                                 if (found < 0) {
                                     ctx.getSource().sendError(Text.literal(
-                                            "Локация не найдена: " + requested));
+                                            "Локация не найдена: " + stripOuterQuotes(raw).trim()));
                                     return 0;
                                 }
                                 GameConfig.setSelectedLocation(found);
@@ -123,5 +147,27 @@ public final class ImbaExtension implements ModInitializer {
                                 return 1;
                             })));
         });
+    }
+
+    private static String normalizeLocation(String value) {
+        String clean = stripOuterQuotes(value == null ? "" : value);
+        clean = clean.replaceAll("§.", "");
+        clean = Normalizer.normalize(clean, Normalizer.Form.NFKC);
+        clean = clean.trim().replaceAll("\\s+", " ");
+        return clean.toLowerCase(Locale.ROOT);
+    }
+
+    private static String stripOuterQuotes(String value) {
+        String clean = value == null ? "" : value.trim();
+        if (clean.length() >= 2) {
+            char first = clean.charAt(0);
+            char last = clean.charAt(clean.length() - 1);
+            boolean quoted = (first == '"' && last == '"')
+                    || (first == '\'' && last == '\'')
+                    || (first == '«' && last == '»')
+                    || (first == '“' && last == '”');
+            if (quoted) clean = clean.substring(1, clean.length() - 1);
+        }
+        return clean;
     }
 }

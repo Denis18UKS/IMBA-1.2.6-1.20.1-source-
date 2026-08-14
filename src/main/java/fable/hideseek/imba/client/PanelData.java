@@ -5,6 +5,7 @@ import java.util.Arrays;
 public final class PanelData {
     public static int seconds = 120;
     public static int hearts = 5;
+    public static String heartsLabel = "Сердца";
     public static int selectedLocation = 0;
     public static int locationCount = 12;
     public static String locationName = "Локация 1";
