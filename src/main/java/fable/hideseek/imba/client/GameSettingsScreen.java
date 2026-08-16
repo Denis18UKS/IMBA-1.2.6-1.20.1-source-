@@ -13,8 +13,10 @@ import net.minecraft.text.Text;
 
 import java.util.Locale;
 
-/** Full editor for values and visual layout of the 3x3 world settings panel. */
+/** Полный редактор значений и внешнего вида 3x3-панели. */
 public final class GameSettingsScreen extends Screen {
+    public static final String BUILD_MARKER = "PANEL-V2";
+
     private int seconds = PanelData.seconds;
     private int hearts = PanelData.hearts;
 
@@ -33,47 +35,58 @@ public final class GameSettingsScreen extends Screen {
     private TextFieldWidget downArrowY;
 
     public GameSettingsScreen() {
-        super(Text.literal("Настройщик панели IMBA"));
+        super(Text.literal("Редактор панели IMBA v2"));
     }
 
     @Override
     protected void init() {
-        int left = width / 2 - 220;
-        int top = Math.max(10, height / 2 - 165);
+        int left = width / 2 - 230;
+        int top = Math.max(8, height / 2 - 174);
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Таймер +30 сек."), b -> changeSeconds(30))
-                .dimensions(left, top + 24, 106, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Таймер -30 сек."), b -> changeSeconds(-30))
-                .dimensions(left + 112, top + 24, 106, 20).build());
+        // Значения игры.
+        addDrawableChild(ButtonWidget.builder(Text.literal("Таймер +30"), b -> changeSeconds(30))
+                .dimensions(left, top + 30, 106, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Таймер -30"), b -> changeSeconds(-30))
+                .dimensions(left + 112, top + 30, 106, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Сердца +1"), b -> changeHearts(1))
-                .dimensions(left + 222, top + 24, 106, 20).build());
+                .dimensions(left + 242, top + 30, 106, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Сердца -1"), b -> changeHearts(-1))
-                .dimensions(left + 334, top + 24, 106, 20).build());
+                .dimensions(left + 354, top + 30, 106, 20).build());
 
-        timerLabel = field(left, top + 66, 214, PanelData.timerLabel, 24);
-        heartsLabel = field(left + 226, top + 66, 214, PanelData.heartsLabel, 24);
+        // Названия.
+        timerLabel = field(left, top + 78, 218, PanelData.timerLabel, 24);
+        heartsLabel = field(left + 242, top + 78, 218, PanelData.heartsLabel, 24);
 
-        timerTitleScale = field(left, top + 106, 100, fmt(PanelData.timerTitleScale), 8);
-        heartsTitleScale = field(left + 112, top + 106, 100, fmt(PanelData.heartsTitleScale), 8);
-        timerValueScale = field(left + 226, top + 106, 100, fmt(PanelData.timerValueScale), 8);
-        heartsValueScale = field(left + 340, top + 106, 100, fmt(PanelData.heartsValueScale), 8);
+        // Размеры.
+        timerTitleScale = field(left, top + 126, 102, fmt(PanelData.timerTitleScale), 8);
+        heartsTitleScale = field(left + 114, top + 126, 102, fmt(PanelData.heartsTitleScale), 8);
+        timerValueScale = field(left + 242, top + 126, 102, fmt(PanelData.timerValueScale), 8);
+        heartsValueScale = field(left + 356, top + 126, 104, fmt(PanelData.heartsValueScale), 8);
 
-        arrowScale = field(left, top + 146, 100, fmt(PanelData.arrowScale), 8);
-        timerX = field(left + 112, top + 146, 100, Integer.toString(PanelData.timerX), 8);
-        heartsX = field(left + 226, top + 146, 100, Integer.toString(PanelData.heartsX), 8);
+        arrowScale = field(left, top + 174, 102, fmt(PanelData.arrowScale), 8);
+        addDrawableChild(ButtonWidget.builder(Text.literal("Все размеры -0.10"), b -> adjustAllScales(-0.10F))
+                .dimensions(left + 114, top + 174, 160, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Все размеры +0.10"), b -> adjustAllScales(0.10F))
+                .dimensions(left + 286, top + 174, 174, 20).build());
 
-        titleY = field(left, top + 186, 100, Integer.toString(PanelData.titleY), 8);
-        upArrowY = field(left + 112, top + 186, 100, Integer.toString(PanelData.upArrowY), 8);
-        valueY = field(left + 226, top + 186, 100, Integer.toString(PanelData.valueY), 8);
-        downArrowY = field(left + 340, top + 186, 100, Integer.toString(PanelData.downArrowY), 8);
+        // Положение.
+        timerX = field(left, top + 222, 102, Integer.toString(PanelData.timerX), 8);
+        heartsX = field(left + 114, top + 222, 102, Integer.toString(PanelData.heartsX), 8);
+        titleY = field(left + 242, top + 222, 102, Integer.toString(PanelData.titleY), 8);
+        upArrowY = field(left + 356, top + 222, 104, Integer.toString(PanelData.upArrowY), 8);
 
-        addDrawableChild(ButtonWidget.builder(Text.literal("Применить"), b -> sendAll())
-                .dimensions(left, top + 228, 142, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Сбросить внешний вид"), b ->
+        valueY = field(left, top + 270, 102, Integer.toString(PanelData.valueY), 8);
+        downArrowY = field(left + 114, top + 270, 102, Integer.toString(PanelData.downArrowY), 8);
+        addDrawableChild(ButtonWidget.builder(Text.literal("Стандартные X/Y"), b -> resetPositionFields())
+                .dimensions(left + 242, top + 270, 218, 20).build());
+
+        addDrawableChild(ButtonWidget.builder(Text.literal("ПРИМЕНИТЬ ВСЁ"), b -> sendAll())
+                .dimensions(left, top + 310, 146, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Сбросить всю панель"), b ->
                         ClientPlayNetworking.send(PanelSettingsNetworking.RESET_LAYOUT, PacketByteBufs.empty()))
-                .dimensions(left + 149, top + 228, 142, 20).build());
+                .dimensions(left + 157, top + 310, 146, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Закрыть"), b -> close())
-                .dimensions(left + 298, top + 228, 142, 20).build());
+                .dimensions(left + 314, top + 310, 146, 20).build());
     }
 
     private TextFieldWidget field(int x, int y, int width, String value, int maxLength) {
@@ -120,11 +133,41 @@ public final class GameSettingsScreen extends Screen {
             layout.writeInt(parseInt(valueY));
             layout.writeInt(parseInt(downArrowY));
             ClientPlayNetworking.send(PanelSettingsNetworking.SET_LAYOUT, layout);
+
+            if (client != null && client.player != null) {
+                client.player.sendMessage(Text.literal("§aНастройки панели IMBA применены"), true);
+            }
         } catch (NumberFormatException ignored) {
             if (client != null && client.player != null) {
                 client.player.sendMessage(Text.literal("§cПроверь числовые поля настройщика панели"), true);
             }
         }
+    }
+
+    private void adjustAllScales(float delta) {
+        adjustScale(timerTitleScale, delta);
+        adjustScale(heartsTitleScale, delta);
+        adjustScale(timerValueScale, delta);
+        adjustScale(heartsValueScale, delta);
+        adjustScale(arrowScale, delta);
+    }
+
+    private void adjustScale(TextFieldWidget field, float delta) {
+        try {
+            float value = Float.parseFloat(field.getText().replace(',', '.').trim());
+            value = Math.max(0.40F, Math.min(3.00F, value + delta));
+            field.setText(fmt(value));
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    private void resetPositionFields() {
+        timerX.setText("-38");
+        heartsX.setText("38");
+        titleY.setText("-52");
+        upArrowY.setText("-26");
+        valueY.setText("0");
+        downArrowY.setText("28");
     }
 
     public void applyPanelLayout() {
@@ -168,36 +211,46 @@ public final class GameSettingsScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context);
-        int left = width / 2 - 220;
-        int top = Math.max(10, height / 2 - 165);
+        int left = width / 2 - 230;
+        int top = Math.max(8, height / 2 - 174);
 
-        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, top, 0xFFFFFFFF);
+        context.drawCenteredTextWithShadow(textRenderer,
+                "Редактор панели IMBA v2  [" + BUILD_MARKER + "]",
+                width / 2, top, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
                 "Текущие значения: " + String.format("%02d:%02d", seconds / 60, seconds % 60)
                         + "    ❤ " + hearts,
-                width / 2, top + 12, 0xFFBBBBBB);
+                width / 2, top + 14, 0xFFBBBBBB);
 
-        label(context, "Название левой колонки", left, top + 54);
-        label(context, "Название правой колонки", left + 226, top + 54);
+        section(context, "ЗНАЧЕНИЯ", left, top + 18);
+        section(context, "НАЗВАНИЯ", left, top + 62);
+        label(context, "Левая колонка (бывш. Таймер)", left, top + 66);
+        label(context, "Правая колонка (бывш. Сердца)", left + 242, top + 66);
 
-        label(context, "Размер загол. L", left, top + 94);
-        label(context, "Размер загол. R", left + 112, top + 94);
-        label(context, "Размер значения L", left + 226, top + 94);
-        label(context, "Размер значения R", left + 340, top + 94);
+        section(context, "РАЗМЕР ТЕКСТА", left, top + 110);
+        label(context, "Заголовок L", left, top + 114);
+        label(context, "Заголовок R", left + 114, top + 114);
+        label(context, "Значение L", left + 242, top + 114);
+        label(context, "Значение R", left + 356, top + 114);
+        label(context, "Размер ▲ / ▼", left, top + 162);
 
-        label(context, "Размер стрелок", left, top + 134);
-        label(context, "X левой колонки", left + 112, top + 134);
-        label(context, "X правой колонки", left + 226, top + 134);
-
-        label(context, "Y заголовков", left, top + 174);
-        label(context, "Y верхних ▲", left + 112, top + 174);
-        label(context, "Y значений", left + 226, top + 174);
-        label(context, "Y нижних ▼", left + 340, top + 174);
+        section(context, "ПОЛОЖЕНИЕ", left, top + 206);
+        label(context, "X левой", left, top + 210);
+        label(context, "X правой", left + 114, top + 210);
+        label(context, "Y заголовков", left + 242, top + 210);
+        label(context, "Y верхних ▲", left + 356, top + 210);
+        label(context, "Y значений", left, top + 258);
+        label(context, "Y нижних ▼", left + 114, top + 258);
 
         context.drawTextWithShadow(textRenderer,
-                "Размеры: 0.40–3.00 • X: -120…120 • Y: -100…100 • изменения видны сразу после «Применить»",
-                left, top + 214, 0xFF888888);
+                "Scale 0.40–3.00 • X -120…120 • Y -100…100 • кнопка «ПРИМЕНИТЬ ВСЁ» сохраняет на сервере",
+                left, top + 296, 0xFF888888);
+
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private void section(DrawContext context, String text, int x, int y) {
+        context.drawTextWithShadow(textRenderer, "§6" + text, x, y, 0xFFFFAA00);
     }
 
     private void label(DrawContext context, String text, int x, int y) {
