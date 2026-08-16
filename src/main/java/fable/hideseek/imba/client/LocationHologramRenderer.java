@@ -41,8 +41,15 @@ public final class LocationHologramRenderer {
                 quad(photo, m, -half, -half, half, half, 0.0F, false);
                 quad(photo, m, -half, -half, half, half, 0.0F, true);
 
+                double yawRad = Math.toRadians(p.yaw());
+                double frontX = -Math.sin(yawRad);
+                double frontZ = Math.cos(yawRad);
+                double cameraX = camera.x - p.x();
+                double cameraZ = camera.z - p.z();
+                boolean viewerOnFrontSide = cameraX * frontX + cameraZ * frontZ >= 0.0D;
+
                 String title = PanelData.locationName(p.location());
-                if (title != null && !title.isBlank()) {
+                if (viewerOnFrontSide && title != null && !title.isBlank()) {
                     m.push();
                     m.translate(0.0F, -half - 0.115F, 0.012F);
                     float ts = .0145F * Math.max(.88F, scale);
