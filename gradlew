@@ -10,6 +10,7 @@ cp .fifth-AnimationListScreen.java src/main/java/ru/fifth/horror/client/gui/Anim
 base64 -d .fifth-v030-textpatch.b64 | tar -xz
 base64 -d .fifth-v030-tailfix.b64 | tar -xz
 cp .fifth-v030-HorrorButton.java src/main/java/ru/fifth/horror/client/gui/HorrorButton.java
+cp .fifth-v030-FifthNetworking.java src/main/java/ru/fifth/horror/network/FifthNetworking.java
 sed -i "s/net.fabricmc:fabric-loom:1.3.10/net.fabricmc:fabric-loom:1.10-SNAPSHOT/" build.gradle
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.fabricmc.fabric.api.networking.v1.ClientPlayNetworking/net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking/g' {} +
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.minecraft.block.BlockView/net.minecraft.world.BlockView/g' {} +
