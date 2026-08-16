@@ -5,6 +5,21 @@ import java.util.Arrays;
 public final class PanelData {
     public static int seconds = 120;
     public static int hearts = 5;
+
+    public static String timerLabel = "Таймер";
+    public static String heartsLabel = "Сердца";
+    public static float timerTitleScale = 1.30F;
+    public static float heartsTitleScale = 1.30F;
+    public static float timerValueScale = 1.60F;
+    public static float heartsValueScale = 1.60F;
+    public static float arrowScale = 1.45F;
+    public static int timerX = -38;
+    public static int heartsX = 38;
+    public static int titleY = -52;
+    public static int upArrowY = -26;
+    public static int valueY = 0;
+    public static int downArrowY = 28;
+
     public static int selectedLocation = 0;
     public static int locationCount = 12;
     public static String locationName = "Локация 1";
