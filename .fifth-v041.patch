@@ -1,0 +1,609 @@
+diff -ruN fifth_v040/gradle.properties fifth_v041/gradle.properties
+--- fifth_v040/gradle.properties	2026-08-16 20:25:30.940599209 +0000
++++ fifth_v041/gradle.properties	2026-08-16 20:59:28.520898111 +0000
+@@ -5,6 +5,6 @@
+ loader_version=0.17.2
+ fabric_version=0.92.6+1.20.1
+ geckolib_version=4.8.4
+-mod_version=0.4.0-alpha
++mod_version=0.4.1-alpha
+ maven_group=ru.fifth.horror
+ archives_base_name=Fifth-Horror-Engine
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java fifth_v041/src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java
+--- fifth_v040/src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java	2026-08-16 20:23:20.329911677 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java	2026-08-16 21:00:08.198513419 +0000
+@@ -3,12 +3,15 @@
+ import net.minecraft.client.MinecraftClient;
+ import net.minecraft.client.font.TextRenderer;
+ import net.minecraft.client.gui.DrawContext;
++import net.minecraft.client.gui.screen.ChatScreen;
++import net.minecraft.client.gui.screen.Screen;
++import net.minecraft.client.gui.screen.ingame.HandledScreen;
+ import net.minecraft.client.gui.widget.ClickableWidget;
+ import net.minecraft.text.Text;
+ import net.minecraft.util.Identifier;
+ import ru.fifth.horror.FifthMod;
+ 
+-/** Global visual skin used both by Fifth screens and by vanilla screens while the mod is installed. */
++/** Shared visual skin. Vanilla gameplay screens are deliberately left alone. */
+ public final class HorrorTheme {
+     public static final Identifier BACKGROUND = FifthMod.id("textures/gui/title.png");
+     public static final int BG_W = 1672;
+@@ -16,6 +19,29 @@
+ 
+     private HorrorTheme() {}
+ 
++    /**
++     * The photographic Fifth background belongs to menu/loading screens only.
++     * Once a world exists, vanilla must keep rendering the actual world behind inventory/chat/etc.
++     */
++    public static boolean shouldUseFullMenuBackground() {
++        MinecraftClient c = MinecraftClient.getInstance();
++        return c.world == null;
++    }
++
++    /**
++     * Theme vanilla menu widgets, but never repaint gameplay/container UI.
++     * Fifth's own screens already draw themselves and therefore do not need a second overlay pass.
++     */
++    public static boolean shouldThemeVanillaWidgets() {
++        MinecraftClient c = MinecraftClient.getInstance();
++        Screen screen = c.currentScreen;
++        if (screen == null) return false;
++        if (screen instanceof HorrorScreen) return false;
++        if (screen instanceof HandledScreen<?>) return false;
++        if (screen instanceof ChatScreen) return false;
++        return true;
++    }
++
+     public static void drawScreenBackground(DrawContext c, int width, int height) {
+         c.drawTexture(BACKGROUND, 0, 0, width, height, 0, 0, BG_W, BG_H, BG_W, BG_H);
+         c.fillGradient(0, 0, width, height, 0xB40A0B0E, 0xE0090709);
+@@ -31,14 +57,15 @@
+         }
+     }
+ 
+-    /** Adds a horror plaque over an already rendered vanilla pressable without changing its click logic. */
++    /** Adds one horror plaque over a vanilla button without replacing its click logic. */
+     public static void overlayVanillaButton(DrawContext c, ClickableWidget w) {
++        if (!shouldThemeVanillaWidgets()) return;
+         int x = w.getX(), y = w.getY(), ww = w.getWidth(), hh = w.getHeight();
+         if (ww <= 0 || hh <= 0) return;
+         boolean hot = w.isHovered() && w.active;
+-        int fill = w.active ? (hot ? 0xB934191E : 0xA90B0D10) : 0xB00A0B0D;
++        int fill = w.active ? (hot ? 0xE134191E : 0xDC0B0D10) : 0xDE0A0B0D;
+         int top = w.active ? (hot ? 0xFFE39A9F : 0xFF775056) : 0xFF382D30;
+         int edge = hot ? 0xFFD45C68 : 0xFF61363B;
+         c.fill(x, y, x + ww, y + hh, fill);
+         c.fill(x, y, x + ww - 5, y + 1, top);
+-        c.fill(x, y + hh - 1, x + ww, y + hh, 0xD024191C);
++        c.fill(x, y + hh - 1, x + ww, y + hh, 0xE024191C);
+         c.fill(x, y, x + 2, y + hh, edge);
+-        c.fill(x + ww - 1, y + 3, x + ww, y + hh - 2, 0xA04A2930);
++        c.fill(x + ww - 1, y + 3, x + ww, y + hh - 2, 0xB04A2930);
+         if (hot && ww > 14 && hh > 8) {
+             c.fill(x + 5, y + 4, x + 7, y + hh - 4, 0xFF96333F);
+             c.fill(x + 10, y + hh - 4, x + ww - 8, y + hh - 3, 0x55492A30);
+@@ -58,6 +85,7 @@
+     }
+ 
+     public static void overlayTextField(DrawContext c, ClickableWidget w) {
++        if (!shouldThemeVanillaWidgets()) return;
+         int x = w.getX(), y = w.getY(), ww = w.getWidth(), hh = w.getHeight();
+         if (ww <= 0 || hh <= 0) return;
+         int edge = w.isFocused() ? 0xFFE2A0A4 : (w.isHovered() ? 0xFF9D4A52 : 0xFF654046);
+@@ -68,6 +96,7 @@
+     }
+ 
+     public static void drawListBackground(DrawContext c, int left, int top, int right, int bottom) {
++        if (!shouldThemeVanillaWidgets()) return;
+         if (right <= left || bottom <= top) return;
+         c.fill(left, top, right, bottom, 0xD5090B0E);
+         c.fill(left, top, right, top + 1, 0xB0714047);
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/client/gui/ScriptComputerScreen.java fifth_v041/src/main/java/ru/fifth/horror/client/gui/ScriptComputerScreen.java
+--- fifth_v040/src/main/java/ru/fifth/horror/client/gui/ScriptComputerScreen.java	2026-08-16 20:22:58.723718441 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/client/gui/ScriptComputerScreen.java	2026-08-16 21:03:24.445678791 +0000
+@@ -13,25 +13,25 @@
+ import java.util.Locale;
+ import java.util.UUID;
+ 
+-/**
+- * In-world FifthScript workstation. In addition to the editor it keeps a live library of spawned Director NPCs.
+- * The library is refreshed from the server while this screen is open, so newly spawned NPCs appear automatically.
+- */
++/** FifthScript workstation with a live auto-detected NPC library. */
+ public class ScriptComputerScreen extends HorrorScreen {
+     public record NpcInfo(UUID uuid, String id, String name, boolean aiEnabled, String aiScript, int pathPoints, String world) {}
+     private record CodeTemplate(String name, String description, String code) {}
+ 
++    /* All templates use self. The NPC selected in the library becomes self when the script is launched. */
+     private static final CodeTemplate[] TEMPLATES = {
+-            new CodeTemplate("Запустить интеллект", "Включает код NPC; до этого он остаётся статуей.", "npc(\"%NPC%\")->startAi();"),
+-            new CodeTemplate("Остановить интеллект", "Останавливает ИИ и текущий маршрут.", "npc(\"%NPC%\")->stopAi();"),
+-            new CodeTemplate("Пройти маршрут один раз", "Идёт по точкам маршрутного инструмента один раз.", "npc(\"%NPC%\")->startAi();\nnpc(\"%NPC%\")->followPath(false, 0.25);"),
+-            new CodeTemplate("Патрулировать маршрут", "Зацикливает маршрут, заданный маршрутным инструментом.", "npc(\"%NPC%\")->startAi();\nnpc(\"%NPC%\")->followPath(true, 0.25);"),
+-            new CodeTemplate("Идти к координатам", "Одно движение к указанной точке мира.", "npc(\"%NPC%\")->moveTo(100, 64, -30, 0.25);"),
+-            new CodeTemplate("Смотреть на игрока", "На каждом тике ИИ поворачивается к ближайшему игроку.", "onNpcTick() {\n    npc(\"self\")->lookAtNearestPlayer(12);\n}"),
+-            new CodeTemplate("Маршрут + взгляд", "Готовая основа интеллекта патрульного NPC.", "onNpcTick() {\n    npc(\"self\")->followPath(true, 0.25);\n    npc(\"self\")->lookAtNearestPlayer(10);\n}"),
+-            new CodeTemplate("Реплика", "Отправляет игрокам реплику от имени NPC.", "npc(\"%NPC%\")->say(\"Я что-то слышал...\");"),
+-            new CodeTemplate("Проиграть анимацию", "Запускает выбранную GeckoLib-анимацию.", "npc(\"%NPC%\")->animation(\"animation.npc.walk\");"),
+-            new CodeTemplate("Назначить этот AI-файл", "Привязывает NPC к текущему .fifth.php и запускает его.", "npc(\"%NPC%\")->script(\"%SCRIPT%\");\nnpc(\"%NPC%\")->startAi();")
++            new CodeTemplate("Запустить интеллект", "Включает выбранного NPC. Пока код не запущен, NPC остаётся статуей.", "npc(\"self\")->startAi();"),
++            new CodeTemplate("Остановить интеллект", "Останавливает ИИ и текущий маршрут выбранного NPC.", "npc(\"self\")->stopAi();"),
++            new CodeTemplate("Пройти маршрут один раз", "Идёт по точкам маршрутного инструмента один раз.", "npc(\"self\")->startAi();\nnpc(\"self\")->followPath(false, 0.25);"),
++            new CodeTemplate("Патрулировать маршрут", "Зацикливает маршрут, заданный маршрутным инструментом.", "npc(\"self\")->startAi();\nnpc(\"self\")->followPath(true, 0.25);"),
++            new CodeTemplate("Идти к координатам", "Одно движение к указанной точке мира.", "npc(\"self\")->moveTo(100, 64, -30, 0.25);"),
++            new CodeTemplate("Смотреть на игрока", "Постоянный AI: NPC смотрит на ближайшего игрока.", "onNpcTick() {\n    npc(\"self\")->lookAtNearestPlayer(12);\n}"),
++            new CodeTemplate("Маршрут + взгляд", "Постоянный AI: патруль по маршруту и взгляд на игрока.", "onNpcTick() {\n    npc(\"self\")->followPath(true, 0.25);\n    npc(\"self\")->lookAtNearestPlayer(10);\n}"),
++            new CodeTemplate("Реплика", "Отправляет игрокам реплику от имени выбранного NPC.", "npc(\"self\")->say(\"Я что-то слышал...\");"),
++            new CodeTemplate("Проиграть анимацию", "Запускает GeckoLib-анимацию у выбранного NPC.", "npc(\"self\")->animation(\"animation.npc.walk\");"),
++            new CodeTemplate("Назначить этот AI-файл", "Явно привязывает текущий .fifth.php к выбранному NPC и запускает ИИ.", "npc(\"self\")->script(\"%SCRIPT%\");\nnpc(\"self\")->startAi();")
+     };
+ 
+     private final BlockPos pos;
+@@ -43,6 +43,7 @@
+     private String status = "";
+     private List<NpcInfo> npcLibrary = List.of();
+     private String selectedNpc = "";
++    private UUID selectedNpcUuid;
+     private int npcPage;
+     private int templateIndex;
+     private int narrowView; // 0 code, 1 NPC, 2 templates
+@@ -66,7 +67,7 @@
+         boolean wide = width >= 700 && height >= 285;
+ 
+         if (wide) {
+-            int rightW = Math.max(218, Math.min(300, width / 3));
++            int rightW = Math.max(230, Math.min(320, width / 3));
+             int leftW = Math.max(320, width - margin * 3 - rightW);
+             int leftX = margin;
+             int rightX = leftX + leftW + margin;
+@@ -110,7 +111,8 @@
+         int half = Math.max(70, (w - gap) / 2);
+         addDrawableChild(HorrorButton.builder(Text.literal("Проверить код"), b -> validateScript()).dimensions(x, by, half, buttonH).build());
+         addDrawableChild(HorrorButton.builder(Text.literal("Сохранить"), b -> save()).dimensions(x + half + gap, by, w - half - gap, buttonH).build());
+-        addDrawableChild(HorrorButton.builder(Text.literal("▶ Запустить"), b -> run()).dimensions(x, by + buttonH + gap, half, buttonH).build());
++        String runLabel = selectedNpc.isBlank() ? "▶ Запустить" : "▶ Запустить для: " + selectedNpc;
++        addDrawableChild(HorrorButton.builder(Text.literal(runLabel), b -> run()).dimensions(x, by + buttonH + gap, half, buttonH).compact().build());
+         addDrawableChild(HorrorButton.builder(Text.literal("Закрыть"), b -> close()).dimensions(x + half + gap, by + buttonH + gap, w - half - gap, buttonH).build());
+     }
+@@ -122,24 +124,22 @@
+         npcSearch.setChangedListener(v -> { npcPage = 0; rebuildPreserving(); });
+ 
+         List<NpcInfo> filtered = filteredNpcs(searchText);
+-        int bottomReserve = includeTemplateControls ? 96 : 52;
++        int bottomReserve = includeTemplateControls ? 104 : 52;
+         int available = Math.max(46, height - safeBottom() - (top + 27) - bottomReserve);
+-        int entryH = 25, gap = 4;
++        int entryH = 28, gap = 4;
+         int per = Math.max(1, available / (entryH + gap));
+         int pages = Math.max(1, (filtered.size() + per - 1) / per);
+         npcPage = Math.max(0, Math.min(npcPage, pages - 1));
+         int from = npcPage * per, to = Math.min(filtered.size(), from + per);
+         int y = top + 27;
+         for (int i = from; i < to; i++) {
+             NpcInfo info = filtered.get(i);
+-            String marker = info.aiEnabled ? "§a●§r " : "§8○§r ";
+-            String selected = info.id.equals(selectedNpc) ? "§c› §r" : "";
+-            String label = selected + marker + info.name + " §8[" + info.id + "] §7• " + info.pathPoints + " т.";
+-            addDrawableChild(HorrorButton.builder(Text.literal(label), b -> {
+-                selectedNpc = info.id;
+-                status = "Выбран NPC: " + info.id;
+-                rebuildPreserving();
+-            }).dimensions(x, y, w, entryH).compact().build());
++            boolean selected = selectedNpcUuid != null && selectedNpcUuid.equals(info.uuid);
++            String select = selected ? "§e▶ ВЫБРАН §r" : "";
++            String ai = info.aiEnabled ? "§aИИ:ВКЛ§r" : "§7ИИ:ВЫКЛ§r";
++            String label = select + ai + "  " + info.name + " §8[" + info.id + "] §7• путь:" + info.pathPoints;
++            addDrawableChild(HorrorButton.builder(Text.literal(label), b -> selectNpc(info)).dimensions(x, y, w, entryH).compact().build());
+             y += entryH + gap;
+         }
+ 
+-        int navY = height - safeBottom() - (includeTemplateControls ? 88 : 23);
++        int navY = height - safeBottom() - (includeTemplateControls ? 92 : 23);
+         int side = 38;
+         addDrawableChild(HorrorButton.builder(Text.literal("‹"), b -> { if (npcPage > 0) { npcPage--; rebuildPreserving(); } }).dimensions(x, navY, side, 21).build());
+         addDrawableChild(HorrorButton.builder(Text.literal((npcPage + 1) + "/" + pages + "   Обновить"), b -> requestNpcLibrary()).dimensions(x + side + 5, navY, w - side * 2 - 10, 21).build());
+@@ -149,6 +149,7 @@
+             int ty = navY + 27;
+             addDrawableChild(HorrorButton.builder(Text.literal("Шаблон: " + TEMPLATES[templateIndex].name), b -> {
+                 templateIndex = (templateIndex + 1) % TEMPLATES.length;
++                status = TEMPLATES[templateIndex].description;
+                 rebuildPreserving();
+             }).dimensions(x, ty, w, 21).compact().build());
+             addDrawableChild(HorrorButton.builder(Text.literal("Вставить шаблон в код"), b -> insertTemplate()).dimensions(x, ty + 27, w, 21).build());
+@@ -185,6 +186,19 @@
+         return out;
+     }
+ 
++    private void selectNpc(NpcInfo info) {
++        selectedNpc = info.id;
++        selectedNpcUuid = info.uuid;
++        if (editor != null) {
++            String s = editor.getText();
++            // Migration for old templates from 0.4.0: a picked NPC becomes runtime "self".
++            s = s.replace("npc(\"npc_id\")", "npc(\"self\")").replace("%NPC%", "self");
++            editor.setText(s);
++        }
++        status = "NPC выбран: " + info.id + ". Кнопка «Запустить» теперь выполняет код именно для него.";
++        rebuildPreserving();
++    }
++
+     private void insertTemplate() {
+         if (editor == null) {
+             narrowView = 0;
+@@ -192,14 +206,14 @@
+             status = "Открыл редактор кода. Повтори вставку шаблона.";
+             return;
+         }
+-        String npc = selectedNpc.isBlank() ? "npc_id" : selectedNpc;
+         String scriptName = name == null || name.getText().isBlank() ? "main" : name.getText();
+-        String code = TEMPLATES[templateIndex].code.replace("%NPC%", npc).replace("%SCRIPT%", scriptName);
++        String code = TEMPLATES[templateIndex].code.replace("%SCRIPT%", scriptName);
+         String current = editor.getText();
+         if (!current.isBlank() && !current.endsWith("\n")) current += "\n";
+         editor.setText(current + code + "\n");
+-        status = selectedNpc.isBlank() ? "Шаблон вставлен. Замени npc_id или выбери NPC в библиотеке." : "Шаблон вставлен для NPC: " + selectedNpc;
++        status = selectedNpc.isBlank()
++                ? "Шаблон вставлен. Для npc(\"self\") сначала выбери NPC в библиотеке."
++                : "Шаблон вставлен. self = " + selectedNpc;
+     }
+ 
+     private void switchNarrow(int view) {
+@@ -216,11 +230,23 @@
+     }
+ 
+     public void updateNpcLibrary(List<NpcInfo> rows) {
+         List<NpcInfo> fresh = rows == null ? List.of() : List.copyOf(rows);
+-        if (fresh.equals(npcLibrary)) return;
++        boolean changed = !fresh.equals(npcLibrary);
+         npcLibrary = fresh;
+-        if (!selectedNpc.isBlank() && npcLibrary.stream().noneMatch(n -> n.id.equals(selectedNpc))) selectedNpc = "";
+-        status = "Автообнаружено NPC: " + npcLibrary.size();
+-        rebuildPreserving();
++        if (selectedNpcUuid != null) {
++            NpcInfo selected = npcLibrary.stream().filter(n -> selectedNpcUuid.equals(n.uuid)).findFirst().orElse(null);
++            if (selected == null) {
++                selectedNpcUuid = null;
++                selectedNpc = "";
++                status = "Выбранный NPC исчез из загруженного мира.";
++            } else {
++                selectedNpc = selected.id;
++            }
++        }
++        if (changed && selectedNpcUuid == null) status = "Автообнаружено NPC: " + npcLibrary.size();
++        if (changed) rebuildPreserving();
+     }
+ 
+     private void requestNpcLibrary() {
+@@ -255,7 +281,7 @@
+         out.writeString(name.getText(), 128);
+         out.writeString(editor.getText(), 1_000_000);
+         ClientPlayNetworking.send(FifthNetworking.SAVE_COMPUTER, out);
+-        status = "Сохранено";
++        status = "Сохранено: " + name.getText();
+     }
+ 
+     private void run() {
+         if (name == null || editor == null) return;
+-        save();
+         PacketByteBuf out = PacketByteBufs.create();
++        // Run is atomic now: the server receives the current unsaved editor text together with the selected NPC.
++        out.writeBlockPos(pos);
+         out.writeString(name.getText(), 128);
++        out.writeString(editor.getText(), 1_000_000);
++        out.writeBoolean(selectedNpcUuid != null);
++        if (selectedNpcUuid != null) {
++            out.writeUuid(selectedNpcUuid);
++            out.writeString(selectedNpc, 128);
++        }
+         ClientPlayNetworking.send(FifthNetworking.RUN_COMPUTER, out);
+-        status = "Сценарий запущен";
++        status = selectedNpcUuid == null
++                ? "Сценарий запущен без выбранного NPC."
++                : "Запущено для NPC: " + selectedNpc + " (self).";
+     }
+ 
+     @Override
+@@ -265,14 +291,17 @@
+         int m = Math.max(8, Math.min(16, width / 42));
+         boolean wide = width >= 700 && height >= 285;
+         if (wide) {
+-            int rightW = Math.max(218, Math.min(300, width / 3));
++            int rightW = Math.max(230, Math.min(320, width / 3));
+             int leftW = Math.max(320, width - m * 3 - rightW);
+             int top = safeTop();
+             panel(c, m - 3, top - 4, leftW + 6, Math.max(70, height - safeBottom() - top + 8));
+             panel(c, m * 2 + leftW - 3, top - 4, rightW + 6, Math.max(70, height - safeBottom() - top + 8));
+             c.drawTextWithShadow(textRenderer, "КОД / .fifth.php", m + 4, top - 13, 0xFFC5B2A8);
+             c.drawTextWithShadow(textRenderer, "ЖИВАЯ БИБЛИОТЕКА NPC", m * 2 + leftW + 4, top - 13, 0xFFC5B2A8);
+-            if (!selectedNpc.isBlank()) c.drawTextWithShadow(textRenderer, "Выбран: " + selectedNpc, m * 2 + leftW + 5, height - safeBottom() - 111, 0xFFD88E92);
++            if (!selectedNpc.isBlank()) {
++                String label = "self = " + selectedNpc;
++                c.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(label, rightW - 10), m * 2 + leftW + 5, height - safeBottom() - 116, 0xFFFFD39A);
++            }
+         }
+         if (!status.isBlank()) {
+             String shown = textRenderer.trimToWidth(status, Math.max(80, width - 20));
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/entity/DirectorNpcEntity.java fifth_v041/src/main/java/ru/fifth/horror/entity/DirectorNpcEntity.java
+--- fifth_v040/src/main/java/ru/fifth/horror/entity/DirectorNpcEntity.java	2026-08-16 20:07:41.000000000 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/entity/DirectorNpcEntity.java	2026-08-16 21:04:27.486372248 +0000
+@@ -114,7 +114,15 @@
+     public void addPathPoint(Vec3d p) { route.add(p); }
+     public void clearPath() { route.clear(); routeIndex = 0; routeRunning = false; }
+     public List<Vec3d> getPathPoints() { return List.copyOf(route); }
+-    public void followPath(boolean loop, double speed) { routeLoop = loop; routeSpeed = Math.max(0.02, Math.min(2.0, speed)); routeIndex = 0; routeRunning = !route.isEmpty(); }
++    public void followPath(boolean loop, double speed) {
++        routeLoop = loop;
++        routeSpeed = Math.max(0.02, Math.min(2.0, speed));
++        // onNpcTick() may call followPath every few ticks. Do not restart at point #1 every time.
++        if (!routeRunning) {
++            routeIndex = 0;
++            routeRunning = !route.isEmpty();
++        }
++    }
+     public void stopPath() { routeRunning = false; getNavigation().stop(); }
+     public String getNpcId() { return dataTracker.get(NPC_ID); }
+     public void setNpcId(String id) { dataTracker.set(NPC_ID, id == null || id.isBlank() ? "npc" : id.trim()); }
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/ClickableWidgetThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/ClickableWidgetThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/ClickableWidgetThemeMixin.java	2026-08-16 20:23:32.134613137 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/ClickableWidgetThemeMixin.java	2026-08-16 21:00:08.201513591 +0000
+@@ -3,6 +3,10 @@
+ import net.minecraft.client.gui.DrawContext;
+ import net.minecraft.client.gui.widget.ClickableWidget;
+ import net.minecraft.client.gui.widget.PressableWidget;
++import net.minecraft.client.gui.widget.SliderWidget;
++import net.minecraft.client.gui.widget.TabButtonWidget;
++import net.minecraft.client.gui.widget.TextFieldWidget;
++import net.minecraft.client.gui.widget.ToggleButtonWidget;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+@@ -11,11 +15,15 @@
+ import ru.fifth.horror.client.gui.HorrorButton;
+ import ru.fifth.horror.client.gui.HorrorTheme;
+ 
+-/** A final overlay skins even vanilla button subclasses that override renderButton themselves. */
++/** One and only one overlay pass for ordinary vanilla pressables. */
+ @Mixin(ClickableWidget.class)
+ public abstract class ClickableWidgetThemeMixin {
+     @Inject(method = "render", at = @At("TAIL"))
+     private void fifth$skinEveryPressable(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         ClickableWidget self = (ClickableWidget)(Object)this;
+-        if (self instanceof PressableWidget && !(self instanceof HorrorButton)) HorrorTheme.overlayVanillaButton(context, self);
++        if (!(self instanceof PressableWidget) || self instanceof HorrorButton) return;
++        // These are styled by dedicated mixins. Skipping them prevents the doubled/tripled text seen at GUI scale 3/4.
++        if (self instanceof SliderWidget || self instanceof TextFieldWidget || self instanceof TabButtonWidget || self instanceof ToggleButtonWidget) return;
++        HorrorTheme.overlayVanillaButton(context, self);
+     }
+ }
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/EntryListThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/EntryListThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/EntryListThemeMixin.java	2026-08-16 20:23:36.854915113 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/EntryListThemeMixin.java	2026-08-16 21:00:08.207513936 +0000
+@@ -17,12 +17,14 @@
+ 
+     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
+     private void fifth$listBackground(DrawContext context, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         HorrorTheme.drawListBackground(context, left, top, right, bottom);
+         ci.cancel();
+     }
+ 
+     @Inject(method = "renderEntry", at = @At("HEAD"))
+     private void fifth$entryCard(DrawContext context, int mouseX, int mouseY, float delta, int index, int x, int y, int entryWidth, int entryHeight, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         boolean hot = mouseX >= x && mouseX < x + entryWidth && mouseY >= y && mouseY < y + entryHeight;
+         context.fill(x + 1, y, x + entryWidth - 1, y + entryHeight - 1, hot ? 0x8C2D181D : 0x68090B0E);
+         context.fill(x + 1, y, x + 3, y + entryHeight - 1, hot ? 0xB9B64A56 : 0x725A3339);
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/ScreenThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/ScreenThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/ScreenThemeMixin.java	2026-08-16 20:23:39.029279139 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/ScreenThemeMixin.java	2026-08-16 21:00:08.199513477 +0000
+@@ -8,18 +8,20 @@
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import ru.fifth.horror.client.gui.HorrorTheme;
+ 
+-/** Makes options, world selection, multiplayer, confirmations and other vanilla screens use Fifth's background. */
++/** Fifth background for menus/loading only; in-world screens keep Minecraft's world background. */
+ @Mixin(Screen.class)
+ public abstract class ScreenThemeMixin {
+     @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
+     private void fifth$background(DrawContext context, CallbackInfo ci) {
++        if (!HorrorTheme.shouldUseFullMenuBackground()) return;
+         MinecraftClient c = MinecraftClient.getInstance();
+         HorrorTheme.drawScreenBackground(context, c.getWindow().getScaledWidth(), c.getWindow().getScaledHeight());
+         ci.cancel();
+     }
+ 
+     @Inject(method = "renderBackgroundTexture", at = @At("HEAD"), cancellable = true)
+     private void fifth$backgroundTexture(DrawContext context, CallbackInfo ci) {
++        if (!HorrorTheme.shouldUseFullMenuBackground()) return;
+         MinecraftClient c = MinecraftClient.getInstance();
+         HorrorTheme.drawScreenBackground(context, c.getWindow().getScaledWidth(), c.getWindow().getScaledHeight());
+         ci.cancel();
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java	2026-08-16 20:23:27.831815934 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java	2026-08-16 21:00:08.202513649 +0000
+@@ -4,10 +4,12 @@
+ import net.minecraft.client.MinecraftClient;
+ import net.minecraft.client.gui.DrawContext;
+ import net.minecraft.client.gui.widget.SliderWidget;
++import net.minecraft.text.Text;
+ import org.spongepowered.asm.mixin.Mixin;
+ import org.spongepowered.asm.mixin.Shadow;
+ import org.spongepowered.asm.mixin.injection.At;
+ import org.spongepowered.asm.mixin.injection.Inject;
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
++import ru.fifth.horror.client.gui.HorrorTheme;
+ 
+ @Mixin(SliderWidget.class)
+ public abstract class SliderThemeMixin {
+@@ -15,17 +17,18 @@
+ 
+     @Inject(method = "renderButton", at = @At("TAIL"))
+     private void fifth$slider(DrawContext c, int mouseX, int mouseY, float delta, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         SliderWidget self = (SliderWidget)(Object)this;
+         int x=self.getX(), y=self.getY(), w=self.getWidth(), h=self.getHeight();
+         boolean hot=self.isHovered() && self.active;
+-        c.fill(x,y,x+w,y+h,hot?0xE329171B:0xDB0A0C0F);
++        c.fill(x,y,x+w,y+h,hot?0xE329171B:0xE10A0C0F);
+         c.fill(x,y,x+w-5,y+1,hot?0xFFE09A9F:0xFF745056);
+         c.fill(x,y,x+2,y+h,hot?0xFFD15B66:0xFF60363C);
+         int trackY=y+h-5;
+         c.fill(x+7,trackY,x+w-7,trackY+2,0xFF34272A);
+-        int knob=x+7+(int)Math.round(Math.max(0,Math.min(1,value))*(w-16));
++        int knob=x+7+(int)Math.round(Math.max(0,Math.min(1,value))*(Math.max(1,w-16)));
+         c.fill(knob-2,y+3,knob+3,y+h-3,hot?0xFFD26B74:0xFF9A555C);
+         var tr=MinecraftClient.getInstance().textRenderer;
+-        var msg=self.getMessage();
++        Text msg=self.getMessage();
+         String raw=msg.getString();
+-        if(tr.getWidth(raw)>w-18) msg=net.minecraft.text.Text.literal(tr.trimToWidth(raw,Math.max(10,w-28))+"…");
+-        c.drawTextWithShadow(tr,msg,x+Math.max(7,(w-tr.getWidth(msg))/2),y+Math.max(1,(h-8)/2-2),self.active?0xFFE6D8D0:0xFF746A66);
++        if(tr.getWidth(raw)>w-18) msg=Text.literal(tr.trimToWidth(raw,Math.max(10,w-28))+"…");
++        c.drawTextWithShadow(tr,msg,x+Math.max(7,(w-tr.getWidth(msg))/2),y+Math.max(1,(h-8)/2),self.active?0xFFE6D8D0:0xFF746A66);
+     }
+ }
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/SpecialWidgetThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/SpecialWidgetThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/SpecialWidgetThemeMixin.java	2026-08-16 20:23:30.165000237 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/SpecialWidgetThemeMixin.java	2026-08-16 21:00:08.204513764 +0000
+@@ -10,10 +10,11 @@
+ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+ import ru.fifth.horror.client.gui.HorrorTheme;
+ 
+-/** Covers non-Pressable vanilla tabs/toggles used by world creation and several settings panels. */
++/** Tabs/toggles need their own pass because they are not ordinary PressableWidget subclasses. */
+ @Mixin({TabButtonWidget.class, ToggleButtonWidget.class})
+ public abstract class SpecialWidgetThemeMixin {
+     @Inject(method = "renderButton", at = @At("TAIL"))
+     private void fifth$special(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         HorrorTheme.overlayVanillaButton(context, (ClickableWidget)(Object)this);
+     }
+ }
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/mixin/TextFieldThemeMixin.java fifth_v041/src/main/java/ru/fifth/horror/mixin/TextFieldThemeMixin.java
+--- fifth_v040/src/main/java/ru/fifth/horror/mixin/TextFieldThemeMixin.java	2026-08-16 20:23:34.367559144 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/mixin/TextFieldThemeMixin.java	2026-08-16 21:00:08.205513821 +0000
+@@ -11,6 +11,7 @@
+ public abstract class TextFieldThemeMixin {
+     @Inject(method = "renderButton", at = @At("TAIL"))
+     private void fifth$fieldFrame(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
++        if (!HorrorTheme.shouldThemeVanillaWidgets()) return;
+         HorrorTheme.overlayTextField(context, (TextFieldWidget)(Object)this);
+     }
+ }
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/network/FifthNetworking.java fifth_v041/src/main/java/ru/fifth/horror/network/FifthNetworking.java
+--- fifth_v040/src/main/java/ru/fifth/horror/network/FifthNetworking.java	2026-08-16 20:07:41.000000000 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/network/FifthNetworking.java	2026-08-16 21:03:47.910864435 +0000
+@@ -60,8 +60,34 @@
+             });
+         });
+         ServerPlayNetworking.registerGlobalReceiver(RUN_COMPUTER, (server, player, handler, buf, responseSender) -> {
+-            String name = buf.readString(128);
+-            server.execute(() -> { if (player.hasPermissionLevel(2)) FifthScriptEngine.runNamed(server, name, player); });
++            BlockPos pos = buf.readBlockPos();
++            String name = buf.readString(128);
++            String script = buf.readString(1_000_000);
++            boolean hasNpc = buf.readBoolean();
++            java.util.UUID npcUuid = hasNpc ? buf.readUuid() : null;
++            String npcId = hasNpc ? buf.readString(128) : "";
++            server.execute(() -> {
++                if (!player.hasPermissionLevel(2)) return;
++                // Save and run in the same server task. This removes the old save/run race and always executes exactly what is visible in the editor.
++                FifthScriptEngine.saveScript(server, name, script);
++                if (player.getWorld().getBlockEntity(pos) instanceof ScriptComputerBlockEntity be) {
++                    be.setScriptName(name);
++                    be.setScript(script);
++                    be.markDirty();
++                }
++                if (npcUuid != null) {
++                    DirectorNpcEntity npc = FifthScriptEngine.findNpc(server, npcUuid, npcId);
++                    if (npc == null) {
++                        player.sendMessage(Text.literal("§cВыбранный NPC больше не найден: §f" + npcId), false);
++                        return;
++                    }
++                    FifthScriptEngine.runNamedForNpc(server, name, player, npc);
++                } else {
++                    FifthScriptEngine.runNamed(server, name, player);
++                }
++            });
+         });
+         ServerPlayNetworking.registerGlobalReceiver(STRUCTURE_CAPTURE, (server, player, handler, buf, responseSender) -> {
+             String build = buf.readString(128); String variant = buf.readString(128); String group = buf.readString(128);
+diff -ruN fifth_v040/src/main/java/ru/fifth/horror/script/FifthScriptEngine.java fifth_v041/src/main/java/ru/fifth/horror/script/FifthScriptEngine.java
+--- fifth_v040/src/main/java/ru/fifth/horror/script/FifthScriptEngine.java	2026-08-16 20:21:41.893910344 +0000
++++ fifth_v041/src/main/java/ru/fifth/horror/script/FifthScriptEngine.java	2026-08-16 21:04:15.289567702 +0000
+@@ -48,10 +48,47 @@
+     }
+ 
+     public static void runNamed(MinecraftServer server, String name, ServerPlayerEntity executor) {
+-        String script = SCRIPTS.get(safe(name));
+-        if (script == null) { reload(server); script = SCRIPTS.get(safe(name)); }
++        String key = safe(name);
++        String script = SCRIPTS.get(key);
++        if (script == null) { reload(server); script = SCRIPTS.get(key); }
+         if (script == null) { if (executor != null) executor.sendMessage(Text.literal("§cСценарий не найден: " + name), false); return; }
+-        runBlock(server, executor, extractBlock(script, "onRun").isBlank() ? script : extractBlock(script, "onRun"), null);
++        String onRun = extractBlock(script, "onRun");
++        // A pure onNpcTick program needs an NPC context. Do not silently execute its body with self=null.
++        if (onRun.isBlank() && !extractBlock(script, "onNpcTick").isBlank()) {
++            if (executor != null) executor.sendMessage(Text.literal("§eЭтот сценарий содержит onNpcTick(). Выбери NPC в библиотеке компьютера и нажми «Запустить»."), false);
++            return;
++        }
++        runBlock(server, executor, onRun.isBlank() ? script : onRun, null);
++    }
++
++    /** Runs the current computer script with the picked library NPC bound to the runtime alias self. */
++    public static void runNamedForNpc(MinecraftServer server, String name, ServerPlayerEntity executor, DirectorNpcEntity npc) {
++        String key = safe(name);
++        String script = SCRIPTS.get(key);
++        if (script == null) { reload(server); script = SCRIPTS.get(key); }
++        if (script == null) { if (executor != null) executor.sendMessage(Text.literal("§cСценарий не найден: " + name), false); return; }
++
++        String onRun = extractBlock(script, "onRun");
++        String onNpcTick = extractBlock(script, "onNpcTick");
++
++        if (!onRun.isBlank()) {
++            runBlock(server, executor, onRun, npc);
++        } else if (onNpcTick.isBlank()) {
++            // Flat scripts such as npc("self")->moveTo(...) execute immediately for the selected NPC.
++            runBlock(server, executor, script, npc);
++        }
++
++        if (!onNpcTick.isBlank()) {
++            // Selecting an NPC + launching an onNpcTick script is the explicit act that turns the statue into a programmed NPC.
++            npc.setAiScript(key);
++            npc.setAiEnabled(true);
++            runBlock(server, executor, onNpcTick, npc); // first tick immediately, then entity tick continues it
++            if (executor != null) executor.sendMessage(Text.literal("§8[§cПятый§8] §7NPC §f" + npc.getNpcId() + " §7привязан к §f" + key + " §7и ИИ запущен."), false);
++        } else if (executor != null) {
++            executor.sendMessage(Text.literal("§8[§cПятый§8] §7Код выполнен для NPC §f" + npc.getNpcId() + "§7."), false);
++        }
+     }
+ 
+     public static void emitTrigger(MinecraftServer server, String trigger) {
+@@ -100,10 +137,23 @@
+ 
+     public static DirectorNpcEntity findNpc(MinecraftServer server, String id) {
+         Box all = new Box(-30_000_000, -2048, -30_000_000, 30_000_000, 4096, 30_000_000);
+         for (ServerWorld w : server.getWorlds()) {
+-            List<DirectorNpcEntity> list = w.getEntitiesByClass(DirectorNpcEntity.class, all, n -> id.equals(n.getNpcId())); if (!list.isEmpty()) return list.get(0);
++            List<DirectorNpcEntity> list = w.getEntitiesByClass(DirectorNpcEntity.class, all, n -> id.equals(n.getNpcId()));
++            if (!list.isEmpty()) return list.get(0);
+         }
+         return null;
+     }
++
++    /** Exact library lookup by UUID, with ID fallback for worlds reloaded from disk. */
++    public static DirectorNpcEntity findNpc(MinecraftServer server, UUID uuid, String idFallback) {
++        if (uuid != null) {
++            for (ServerWorld w : server.getWorlds()) {
++                if (w.getEntity(uuid) instanceof DirectorNpcEntity npc) return npc;
++            }
++        }
++        return idFallback == null || idFallback.isBlank() ? null : findNpc(server, idFallback);
++    }
+ 
+     private static String extractBlock(String script, String name) {
+         int start = script.indexOf(name + "("); if (start < 0) start = script.indexOf(name + " {"); if (start < 0) return "";
