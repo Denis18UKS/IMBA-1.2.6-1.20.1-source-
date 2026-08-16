@@ -14,6 +14,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.RotationAxis;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,14 +23,23 @@ public final class WorldPanelRenderer {
     private static final List<Anchor> SETTINGS = new ArrayList<>(), STARTS = new ArrayList<>();
     private static int scanCooldown;
     private static net.minecraft.client.world.ClientWorld cachedWorld;
+
     private WorldPanelRenderer() {}
 
     public static void register() {
         WorldRenderEvents.AFTER_ENTITIES.register(context -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.world == null || client.player == null || context.matrixStack() == null) return;
-            if (cachedWorld != client.world) { cachedWorld = client.world; SETTINGS.clear(); STARTS.clear(); scanCooldown = 0; }
-            if (scanCooldown-- <= 0) { scan(client); scanCooldown = 20; }
+            if (cachedWorld != client.world) {
+                cachedWorld = client.world;
+                SETTINGS.clear();
+                STARTS.clear();
+                scanCooldown = 0;
+            }
+            if (scanCooldown-- <= 0) {
+                scan(client);
+                scanCooldown = 20;
+            }
             for (Anchor anchor : List.copyOf(SETTINGS)) renderSettings(context.matrixStack(), context.consumers(), anchor, client);
             for (Anchor anchor : List.copyOf(STARTS)) renderStart(context.matrixStack(), context.consumers(), anchor, client);
         });
@@ -39,49 +49,117 @@ public final class WorldPanelRenderer {
         BlockPos center = client.player.getBlockPos();
         for (BlockPos pos : BlockPos.iterate(center.add(-16, -8, -16), center.add(16, 8, 16))) {
             BlockState state = client.world.getBlockState(pos);
-            if (state.isOf(ImbaMod.SETTINGS_PANEL) && state.get(SettingsPanelBlock.COLUMN) == 0 && state.get(SettingsPanelBlock.ROW) == 0)
+            if (state.isOf(ImbaMod.SETTINGS_PANEL)
+                    && state.get(SettingsPanelBlock.COLUMN) == 0
+                    && state.get(SettingsPanelBlock.ROW) == 0) {
                 remember(SETTINGS, new Anchor(pos.toImmutable(), state.get(SettingsPanelBlock.FACING)));
-            else if (state.isOf(ImbaMod.START_BLOCK)) remember(STARTS, new Anchor(pos.toImmutable(), state.get(StartBlock.FACING)));
+            } else if (state.isOf(ImbaMod.START_BLOCK)) {
+                remember(STARTS, new Anchor(pos.toImmutable(), state.get(StartBlock.FACING)));
+            }
         }
-        SETTINGS.removeIf(anchor -> client.world.isChunkLoaded(anchor.pos()) && !client.world.getBlockState(anchor.pos()).isOf(ImbaMod.SETTINGS_PANEL));
-        STARTS.removeIf(anchor -> client.world.isChunkLoaded(anchor.pos()) && !client.world.getBlockState(anchor.pos()).isOf(ImbaMod.START_BLOCK));
+        SETTINGS.removeIf(anchor -> client.world.isChunkLoaded(anchor.pos())
+                && !client.world.getBlockState(anchor.pos()).isOf(ImbaMod.SETTINGS_PANEL));
+        STARTS.removeIf(anchor -> client.world.isChunkLoaded(anchor.pos())
+                && !client.world.getBlockState(anchor.pos()).isOf(ImbaMod.START_BLOCK));
     }
 
-    private static void remember(List<Anchor> anchors, Anchor candidate) { anchors.removeIf(anchor -> anchor.pos().equals(candidate.pos())); anchors.add(candidate); }
+    private static void remember(List<Anchor> anchors, Anchor candidate) {
+        anchors.removeIf(anchor -> anchor.pos().equals(candidate.pos()));
+        anchors.add(candidate);
+    }
 
-    private static void renderSettings(MatrixStack matrices, VertexConsumerProvider consumers, Anchor anchor, MinecraftClient client) {
+    private static void renderSettings(MatrixStack matrices, VertexConsumerProvider consumers,
+                                       Anchor anchor, MinecraftClient client) {
         begin(matrices, anchor.pos(), anchor.facing(), 3, client);
-        int timerX = -38, heartsX = 38;
+
+        int timerX = PanelData.timerX;
+        int heartsX = PanelData.heartsX;
+        String timerLabel = PanelData.timerLabel == null || PanelData.timerLabel.isBlank() ? "Таймер" : PanelData.timerLabel;
         String heartsLabel = PanelData.heartsLabel == null || PanelData.heartsLabel.isBlank() ? "Сердца" : PanelData.heartsLabel;
-        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer, "Таймер", timerX, -52, 1.30F, 60.0F, 0xFFFFAA00);
-        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer, heartsLabel, heartsX, -52, 1.30F, 60.0F, 0xFFFFAA00);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", timerX, -26, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", heartsX, -26, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60), timerX, 0, 1.60F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "❤ " + PanelData.hearts, heartsX, 0, 1.60F, 0xFFFF5555);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", timerX, 28, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", heartsX, 28, 1.45F, 0xFFFFFFFF);
+
+        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer,
+                timerLabel, timerX, PanelData.titleY, PanelData.timerTitleScale, 60.0F, 0xFFFFAA00);
+        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer,
+                heartsLabel, heartsX, PanelData.titleY, PanelData.heartsTitleScale, 60.0F, 0xFFFFAA00);
+
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "▲", timerX, PanelData.upArrowY, PanelData.arrowScale, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "▲", heartsX, PanelData.upArrowY, PanelData.arrowScale, 0xFFFFFFFF);
+
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60),
+                timerX, PanelData.valueY, PanelData.timerValueScale, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "❤ " + PanelData.hearts,
+                heartsX, PanelData.valueY, PanelData.heartsValueScale, 0xFFFF5555);
+
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "▼", timerX, PanelData.downArrowY, PanelData.arrowScale, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer,
+                "▼", heartsX, PanelData.downArrowY, PanelData.arrowScale, 0xFFFFFFFF);
         matrices.pop();
     }
 
-    private static void renderStart(MatrixStack matrices, VertexConsumerProvider consumers, Anchor anchor, MinecraftClient client) {
+    private static void renderStart(MatrixStack matrices, VertexConsumerProvider consumers,
+                                    Anchor anchor, MinecraftClient client) {
         beginSingle(matrices, anchor.pos(), anchor.facing(), client);
-        String title = client.world.getBlockEntity(anchor.pos()) instanceof StartBlockEntity start ? start.getTitle() : "Начать";
+        String title = client.world.getBlockEntity(anchor.pos()) instanceof StartBlockEntity start
+                ? start.getTitle() : "Начать";
         drawCentered(matrices, consumers, client.textRenderer, title, 0, -4, 0xFFFFAA00);
         matrices.pop();
     }
 
     private static void begin(MatrixStack matrices, BlockPos pos, Direction facing, int height, MinecraftClient client) {
-        var camera = client.gameRenderer.getCamera().getPos(); Direction right = facing.rotateYCounterclockwise(); matrices.push();
-        matrices.translate(pos.getX() - camera.x + .5 + right.getOffsetX(), pos.getY() - camera.y + height / 2.0, pos.getZ() - camera.z + .5 + right.getOffsetZ());
-        matrices.translate(facing.getOffsetX() * .506, 0, facing.getOffsetZ() * .506); matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation())); matrices.scale(.021f, -.021f, .021f);
+        var camera = client.gameRenderer.getCamera().getPos();
+        Direction right = facing.rotateYCounterclockwise();
+        matrices.push();
+        matrices.translate(pos.getX() - camera.x + .5 + right.getOffsetX(),
+                pos.getY() - camera.y + height / 2.0,
+                pos.getZ() - camera.z + .5 + right.getOffsetZ());
+        matrices.translate(facing.getOffsetX() * .506, 0, facing.getOffsetZ() * .506);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation()));
+        matrices.scale(.021f, -.021f, .021f);
     }
+
     private static void beginSingle(MatrixStack matrices, BlockPos pos, Direction facing, MinecraftClient client) {
-        var camera = client.gameRenderer.getCamera().getPos(); matrices.push(); matrices.translate(pos.getX() - camera.x + .5, pos.getY() - camera.y + .55, pos.getZ() - camera.z + .5); matrices.translate(facing.getOffsetX() * .506, 0, facing.getOffsetZ() * .506); matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation())); matrices.scale(.018f, -.018f, .018f);
+        var camera = client.gameRenderer.getCamera().getPos();
+        matrices.push();
+        matrices.translate(pos.getX() - camera.x + .5, pos.getY() - camera.y + .55, pos.getZ() - camera.z + .5);
+        matrices.translate(facing.getOffsetX() * .506, 0, facing.getOffsetZ() * .506);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation()));
+        matrices.scale(.018f, -.018f, .018f);
     }
-    private static void draw(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float x, float y, int color) { renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE); }
-    private static void drawCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, int color) { draw(matrices, consumers, renderer, text, centerX - renderer.getWidth(text) / 2.0f, y, color); }
-    private static void drawCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float scale, int color) { String value=text==null?"":text; float w=Math.max(1.0F,renderer.getWidth(value)); matrices.push(); matrices.translate(centerX,y,0); matrices.scale(scale,scale,1); draw(matrices,consumers,renderer,value,-w/2,0,color); matrices.pop(); }
-    private static void drawScaledCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float maximumWidth, int color) { String value=text==null?"":text; float w=Math.max(1.0F,renderer.getWidth(value)); drawCenteredAtScale(matrices,consumers,renderer,value,centerX,y,Math.min(1.0F,maximumWidth/w),color); }
-    private static void drawFittedCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float baseScale, float maximumWidth, int color) { String value=text==null?"":text; float rawWidth=Math.max(1.0F, renderer.getWidth(value)); float scale=Math.min(baseScale, maximumWidth/rawWidth); drawCenteredAtScale(matrices, consumers, renderer, value, centerX, y, scale, color); }
+
+    private static void draw(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer,
+                             String text, float x, float y, int color) {
+        renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
+                TextRenderer.TextLayerType.NORMAL, 0, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+    }
+
+    private static void drawCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer,
+                                     String text, float centerX, float y, int color) {
+        draw(matrices, consumers, renderer, text, centerX - renderer.getWidth(text) / 2.0F, y, color);
+    }
+
+    private static void drawCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers,
+                                            TextRenderer renderer, String text, float centerX, float y,
+                                            float scale, int color) {
+        String value = text == null ? "" : text;
+        float width = Math.max(1.0F, renderer.getWidth(value));
+        matrices.push();
+        matrices.translate(centerX, y, 0);
+        matrices.scale(scale, scale, 1);
+        draw(matrices, consumers, renderer, value, -width / 2.0F, 0, color);
+        matrices.pop();
+    }
+
+    private static void drawFittedCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers,
+                                                  TextRenderer renderer, String text, float centerX, float y,
+                                                  float baseScale, float maximumWidth, int color) {
+        String value = text == null ? "" : text;
+        float rawWidth = Math.max(1.0F, renderer.getWidth(value));
+        float scale = Math.min(baseScale, maximumWidth / rawWidth);
+        drawCenteredAtScale(matrices, consumers, renderer, value, centerX, y, scale, color);
+    }
 }
