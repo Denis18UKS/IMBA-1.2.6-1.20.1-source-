@@ -24,7 +24,7 @@ tar -xzf .fifth-v041-payload.tar.gz
 sed -i 's/0xE134191E : 0xDC0B0D10/0xFF34191E : 0xFF0B0D10/g; s/: 0xDE0A0B0D;/: 0xFF0A0B0D;/g' src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java
 sed -i 's/hot?0xE329171B:0xE10A0C0F/hot?0xFF29171B:0xFF0A0C0F/g' src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java
 # Fifth 0.4.2: NPC movement, live animation preview, restored custom icons and NPC control/link tools.
-cat .fifth-v042-payload-00 | base64 -d > .fifth-v042-payload.tar.gz
+cat .fifth-v042-chunk-00 .fifth-v042-chunk-01 .fifth-v042-chunk-02 .fifth-v042-chunk-03 .fifth-v042-chunk-04 .fifth-v042-chunk-05 .fifth-v042-chunk-06 .fifth-v042-chunk-07 .fifth-v042-chunk-08 | base64 -d > .fifth-v042-payload.tar.gz
 if [ "$(sha256sum .fifth-v042-payload.tar.gz | awk '{print $1}')" != "50e559397f901a72e6675c94f181a2339226b6e6655d47dc0e1973fef68a7e55" ]; then
   echo 'Fifth 0.4.2 payload checksum mismatch' >&2
   exit 2
