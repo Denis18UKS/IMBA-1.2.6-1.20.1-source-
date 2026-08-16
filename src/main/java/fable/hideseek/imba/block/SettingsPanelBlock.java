@@ -70,7 +70,11 @@ public final class SettingsPanelBlock extends Block {
         if (!(player instanceof ServerPlayerEntity)) return ActionResult.PASS;
         int column = state.get(COLUMN), row = state.get(ROW);
         if (row == 1) return ActionResult.SUCCESS;
-        int direction = row == 0 ? 1 : -1;
+
+        // ROW=0 — физически нижний ряд панели, ROW=2 — верхний.
+        // Верхняя стрелка увеличивает значение, нижняя уменьшает.
+        int direction = row == 2 ? 1 : -1;
+
         if (column == 0) GameConfig.setRoundSeconds(Math.max(30, Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
         else if (column == 2) GameConfig.setSeekerHearts(Math.max(1, Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
         else return ActionResult.SUCCESS;
