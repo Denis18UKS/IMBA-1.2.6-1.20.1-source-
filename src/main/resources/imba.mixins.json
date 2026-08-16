@@ -33,6 +33,7 @@
     "client.KeyboardMixin",
     "client.PlayerRendererMixin",
     "client.FirstPersonRendererMixin",
+    "client.CameraTransitionMixin",
     "client.ClientPlayerEntityMixin",
     "client.ClientPlayerInputMixin",
     "client.ClientEntitySneakMixin",
