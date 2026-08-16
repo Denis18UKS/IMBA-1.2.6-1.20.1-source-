@@ -1,28 +1,3 @@
 package fable.hideseek.imba.client;
-
-import fable.hideseek.imba.net.BlockRulesNetworking;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-
-import java.util.HashSet;
-import java.util.Set;
-
-public final class BlockRulesClientNetworking {
-    private BlockRulesClientNetworking() {}
-
-    public static void register() {
-        ClientPlayNetworking.registerGlobalReceiver(BlockRulesNetworking.SYNC,
-                (client, handler, buf, sender) -> {
-                    int interactiveCount = Math.max(0, Math.min(buf.readVarInt(), 100000));
-                    Set<String> interactive = new HashSet<>();
-                    for (int i = 0; i < interactiveCount; i++) interactive.add(buf.readString(256));
-                    int breakCount = Math.max(0, Math.min(buf.readVarInt(), 100000));
-                    Set<String> breakable = new HashSet<>();
-                    for (int i = 0; i < breakCount; i++) breakable.add(buf.readString(256));
-                    client.execute(() -> {
-                        if (client.currentScreen instanceof BlockRulesScreen screen) {
-                            screen.applyServerState(interactive, breakable);
-                        }
-                    });
-                });
-    }
-}
+import fable.hideseek.imba.net.BlockRulesNetworking;import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;import java.util.HashSet;import java.util.Set;
+public final class BlockRulesClientNetworking{private BlockRulesClientNetworking(){}public static void register(){ClientPlayNetworking.registerGlobalReceiver(BlockRulesNetworking.SYNC,(client,handler,buf,sender)->{Set<String>interactive=readSet(buf),breakable=readSet(buf),entities=readSet(buf);client.execute(()->{if(client.currentScreen instanceof BlockRulesScreen screen)screen.applyServerState(interactive,breakable,entities);});});}private static Set<String> readSet(net.minecraft.network.PacketByteBuf buf){int count=Math.max(0,Math.min(buf.readVarInt(),100000));Set<String>r=new HashSet<>();for(int i=0;i<count;i++)r.add(buf.readString(256));return r;}}

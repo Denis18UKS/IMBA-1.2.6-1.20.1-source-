@@ -20,8 +20,8 @@
     "TntEntityMixin",
     "TntMinecartEntityMixin",
     "MaskServiceGuardMixin",
-    "EntityPlayerDoorCollisionMixin",
     "GameManagerExtensionMixin",
+    "PortalRoundIconMixin",
     "HiderDamageMixin",
     "HideButtonSafetyMixin"
   ],
@@ -29,7 +29,6 @@
     "client.BlockRenderManagerMaskMixin",
     "client.DoorMaskLightingMixin",
     "client.ItemRendererMaskMixin",
-    "client.ClientEntityPlayerDoorCollisionMixin",
     "client.WorldRendererMixin",
     "client.KeyboardMixin",
     "client.PlayerRendererMixin",
@@ -45,7 +44,5 @@
     "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin"
   ],
-  "injectors": {
-    "defaultRequire": 1
-  }
+  "injectors": { "defaultRequire": 1 }
 }

@@ -1,8 +1,3 @@
 package fable.hideseek.imba.client;
-
-public final class ClientGameState {
-    public static boolean paused;
-    public static boolean prepareLocked;
-
-    private ClientGameState() {}
-}
+import net.minecraft.client.MinecraftClient;
+public final class ClientGameState{public static boolean paused,prepareLocked;public static int suppressSneakTicks;private ClientGameState(){}public static boolean isHider(){var p=MinecraftClient.getInstance().player;var t=p==null?null:p.getScoreboardTeam();return t!=null&&"hider".equalsIgnoreCase(t.getName());}public static boolean isSeeker(){var p=MinecraftClient.getInstance().player;var t=p==null?null:p.getScoreboardTeam();return t!=null&&"seeker".equalsIgnoreCase(t.getName());}public static void suppressSneakForFixation(){suppressSneakTicks=Math.max(suppressSneakTicks,4);}public static void tick(){if(suppressSneakTicks>0)suppressSneakTicks--;}}
