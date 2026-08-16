@@ -38,8 +38,10 @@ public final class LocationHologramRenderer {
                 float half = size / 2.0F;
                 Identifier texture = ClientLocationPhotos.hologramTexture(p.location(), p.light());
                 VertexConsumer photo = ctx.consumers().getBuffer(RenderLayer.getEntityCutoutNoCull(texture));
-                quad(photo, m, -half, -half, half, half, 0.0F, false);
-                quad(photo, m, -half, -half, half, half, 0.0F, true);
+
+                // Один no-cull quad уже виден с обеих сторон. Не рисуем вторую
+                // совпадающую плоскость: две coplanar-копии давали z-fighting и мерцание.
+                quad(photo, m, -half, -half, half, half, 0.0F);
 
                 double yawRad = Math.toRadians(p.yaw());
                 double frontX = -Math.sin(yawRad);
@@ -74,28 +76,21 @@ public final class LocationHologramRenderer {
         });
     }
 
-    private static void quad(VertexConsumer v, MatrixStack m, float l, float b, float r, float t, float z, boolean reverse) {
+    private static void quad(VertexConsumer v, MatrixStack m, float l, float b, float r, float t, float z) {
         var e = m.peek();
-        if (!reverse) {
-            vertex(v, e, l, b, z, 0, 1, 1);
-            vertex(v, e, r, b, z, 1, 1, 1);
-            vertex(v, e, r, t, z, 1, 0, 1);
-            vertex(v, e, l, t, z, 0, 0, 1);
-        } else {
-            vertex(v, e, r, b, z, 0, 1, -1);
-            vertex(v, e, l, b, z, 1, 1, -1);
-            vertex(v, e, l, t, z, 1, 0, -1);
-            vertex(v, e, r, t, z, 0, 0, -1);
-        }
+        vertex(v, e, l, b, z, 0, 1);
+        vertex(v, e, r, b, z, 1, 1);
+        vertex(v, e, r, t, z, 1, 0);
+        vertex(v, e, l, t, z, 0, 0);
     }
 
-    private static void vertex(VertexConsumer v, MatrixStack.Entry e, float x, float y, float z, float u, float vv, int nz) {
+    private static void vertex(VertexConsumer v, MatrixStack.Entry e, float x, float y, float z, float u, float vv) {
         v.vertex(e.getPositionMatrix(), x, y, z)
                 .color(255, 255, 255, 255)
                 .texture(u, vv)
                 .overlay(net.minecraft.client.render.OverlayTexture.DEFAULT_UV)
                 .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
-                .normal(e.getNormalMatrix(), 0, 0, nz)
+                .normal(e.getNormalMatrix(), 0, 0, 1)
                 .next();
     }
 }
