@@ -1,1 +1,1 @@
-{"parent":"minecraft:item/generated","textures":{"layer0":"imba:item/model_token"}}
+{"parent":"minecraft:builtin/entity"}

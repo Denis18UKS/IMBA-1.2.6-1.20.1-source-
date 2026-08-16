@@ -50,16 +50,17 @@ public final class WorldPanelRenderer {
     private static void remember(List<Anchor> anchors, Anchor candidate) { anchors.removeIf(anchor -> anchor.pos().equals(candidate.pos())); anchors.add(candidate); }
 
     private static void renderSettings(MatrixStack matrices, VertexConsumerProvider consumers, Anchor anchor, MinecraftClient client) {
-        begin(matrices, anchor.pos(), anchor.facing(), 2, client);
+        begin(matrices, anchor.pos(), anchor.facing(), 3, client);
         int timerX = -38, heartsX = 38;
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "Таймер", timerX, -30, 1.30F, 0xFFFFAA00);
-        drawScaledCentered(matrices, consumers, client.textRenderer, PanelData.heartsLabel == null || PanelData.heartsLabel.isBlank() ? "Сердца" : PanelData.heartsLabel, heartsX, -30, 58.0F, 0xFFFFAA00);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", timerX, -12, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", heartsX, -12, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60), timerX, 8, 1.60F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "❤ " + PanelData.hearts, heartsX, 8, 1.60F, 0xFFFF5555);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", timerX, 31, 1.45F, 0xFFFFFFFF);
-        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", heartsX, 31, 1.45F, 0xFFFFFFFF);
+        String heartsLabel = PanelData.heartsLabel == null || PanelData.heartsLabel.isBlank() ? "Сердца" : PanelData.heartsLabel;
+        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer, "Таймер", timerX, -52, 1.30F, 60.0F, 0xFFFFAA00);
+        drawFittedCenteredAtScale(matrices, consumers, client.textRenderer, heartsLabel, heartsX, -52, 1.30F, 60.0F, 0xFFFFAA00);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", timerX, -26, 1.45F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▲", heartsX, -26, 1.45F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, String.format("%02d:%02d", PanelData.seconds / 60, PanelData.seconds % 60), timerX, 0, 1.60F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "❤ " + PanelData.hearts, heartsX, 0, 1.60F, 0xFFFF5555);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", timerX, 28, 1.45F, 0xFFFFFFFF);
+        drawCenteredAtScale(matrices, consumers, client.textRenderer, "▼", heartsX, 28, 1.45F, 0xFFFFFFFF);
         matrices.pop();
     }
 
@@ -82,4 +83,5 @@ public final class WorldPanelRenderer {
     private static void drawCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, int color) { draw(matrices, consumers, renderer, text, centerX - renderer.getWidth(text) / 2.0f, y, color); }
     private static void drawCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float scale, int color) { String value=text==null?"":text; float w=Math.max(1.0F,renderer.getWidth(value)); matrices.push(); matrices.translate(centerX,y,0); matrices.scale(scale,scale,1); draw(matrices,consumers,renderer,value,-w/2,0,color); matrices.pop(); }
     private static void drawScaledCentered(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float maximumWidth, int color) { String value=text==null?"":text; float w=Math.max(1.0F,renderer.getWidth(value)); drawCenteredAtScale(matrices,consumers,renderer,value,centerX,y,Math.min(1.0F,maximumWidth/w),color); }
+    private static void drawFittedCenteredAtScale(MatrixStack matrices, VertexConsumerProvider consumers, TextRenderer renderer, String text, float centerX, float y, float baseScale, float maximumWidth, int color) { String value=text==null?"":text; float rawWidth=Math.max(1.0F, renderer.getWidth(value)); float scale=Math.min(baseScale, maximumWidth/rawWidth); drawCenteredAtScale(matrices, consumers, renderer, value, centerX, y, scale, color); }
 }

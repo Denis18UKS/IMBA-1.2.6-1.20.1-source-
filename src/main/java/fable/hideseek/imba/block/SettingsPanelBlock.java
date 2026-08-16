@@ -22,7 +22,7 @@ import net.minecraft.world.World;
 public final class SettingsPanelBlock extends Block {
     public static final DirectionProperty FACING = net.minecraft.state.property.Properties.HORIZONTAL_FACING;
     public static final IntProperty COLUMN = IntProperty.of("column", 0, 2);
-    public static final IntProperty ROW = IntProperty.of("row", 0, 1);
+    public static final IntProperty ROW = IntProperty.of("row", 0, 2);
     private boolean assembling;
     private boolean dismantling;
 
@@ -37,12 +37,12 @@ public final class SettingsPanelBlock extends Block {
         if (world.isClient || assembling) return;
         Direction facing = placer == null ? Direction.NORTH : placer.getHorizontalFacing().getOpposite();
         Direction right = facing.rotateYCounterclockwise();
-        for (int row = 0; row < 2; row++) for (int column = 0; column < 3; column++) {
+        for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) {
             BlockPos part = pos.offset(right, column).up(row);
             if (!part.equals(pos) && !world.getBlockState(part).isReplaceable()) { world.breakBlock(pos, true); return; }
         }
         assembling = true;
-        for (int row = 0; row < 2; row++) for (int column = 0; column < 3; column++) {
+        for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) {
             BlockPos part = pos.offset(right, column).up(row);
             if (part.equals(pos) || world.getBlockState(part).isReplaceable())
                 world.setBlockState(part, getDefaultState().with(FACING, facing).with(COLUMN, column).with(ROW, row), 3);
@@ -56,7 +56,7 @@ public final class SettingsPanelBlock extends Block {
             BlockPos origin = pos.offset(right, -state.get(COLUMN)).down(state.get(ROW));
             dismantling = true;
             try {
-                for (int y = 0; y < 2; y++) for (int x = 0; x < 3; x++) {
+                for (int y = 0; y < 3; y++) for (int x = 0; x < 3; x++) {
                     BlockPos part = origin.offset(right, x).up(y);
                     if (!part.equals(pos) && world.getBlockState(part).isOf(this)) world.removeBlock(part, false);
                 }
@@ -68,10 +68,12 @@ public final class SettingsPanelBlock extends Block {
     @Override public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (world.isClient) return ActionResult.SUCCESS;
         if (!(player instanceof ServerPlayerEntity)) return ActionResult.PASS;
-        int column = state.get(COLUMN), direction = state.get(ROW) == 1 ? 1 : -1;
+        int column = state.get(COLUMN), row = state.get(ROW);
+        if (row == 1) return ActionResult.SUCCESS;
+        int direction = row == 0 ? 1 : -1;
         if (column == 0) GameConfig.setRoundSeconds(Math.max(30, Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
         else if (column == 2) GameConfig.setSeekerHearts(Math.max(1, Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
-        else return ActionResult.PASS;
+        else return ActionResult.SUCCESS;
         GameSettingsConfig.save();
         MaskNetworking.broadcastPanelData(player.getServer());
         return ActionResult.SUCCESS;
