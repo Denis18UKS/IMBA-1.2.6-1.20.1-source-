@@ -61,14 +61,14 @@ public final class HideButtonHandler {
             MaskState.disableStatue(uuid); player.setNoGravity(false); player.setVelocity(0,0,0); player.fallDistance=0f; player.calculateDimensions(); player.removeStatusEffect(StatusEffects.INVISIBILITY); MaskNetworking.refresh(player); GameMessages.send(player, Text.literal("§cВы вышли из маскировки-статуи")); return;
         }
 
-        // Real Minecraft sneaking state: no physical Shift key is assumed.
         player.setSneaking(false); player.setPose(EntityPose.STANDING); player.calculateDimensions();
 
         double x=player.getX(),y=player.getY(),z=player.getZ();
+        boolean specialPotion = state.type == MaskType.ITEM && state.item != null && MaskService.isSpecialPotion(state.item);
         SupportInfo support=findSupport(player);
         state.attachedToFrame=false; state.attachmentFacing=Direction.NORTH;
 
-        if(state.type==MaskType.ITEM&&state.item!=null&&MaskService.isSpecialPotion(state.item)){
+        if(specialPotion){
             BlockPos brewing=findBrewingStand(player);
             if(brewing!=null){Identifier id=Registries.ITEM.getId(state.item);Vec3d off=AttachmentConfig.offsetFor(id);x=brewing.getX()+.5D+off.x;y=brewing.getY()+1D+off.y;z=brewing.getZ()+.5D+off.z;}
             else{x=Math.floor(x)+.5D;y=Math.floor(y);z=Math.floor(z)+.5D;}
@@ -76,21 +76,21 @@ public final class HideButtonHandler {
         else if(shouldCenterOnBlock(state.type)){x=Math.floor(x)+.5D;y=Math.floor(y);z=Math.floor(z)+.5D;}
         else if(state.type==MaskType.ITEM||state.type==MaskType.WALL_CLIMB){Attachment a=findItemFrameAttachment(player);if(a!=null){x=a.pos.x;y=a.pos.y;z=a.pos.z;state.attachedToFrame=a.frame;state.attachmentFacing=a.facing;}else{x=Math.floor(x)+.5D;y=Math.floor(y);z=Math.floor(z)+.5D;}}
 
-        // Keep the existing pair-autoposition math exactly as before.
         if(state.block!=null&&support!=null&&MaskAutoPositionConfig.hasPair(state.block,support.block)){
             MaskAutoPositionConfig.Offset o=MaskAutoPositionConfig.offsetFor(state.block,support.block);x+=o.xPixels/16.0D;y=support.surfaceY+o.yPixels/16.0D;z+=o.zPixels/16.0D;
         }
 
-        double feetY=player.getBoundingBox().minY;
-        boolean inAir=support==null||feetY-support.surfaceY>.30D;
-        if(!fable.hideseek.imba.config.AirFixationConfig.isAllowedAt(state,player.getWorld(),x,y,z,inAir)){
-            var rule=fable.hideseek.imba.config.AirFixationConfig.effectiveRule(state);
-            player.sendMessage(Text.literal(rule.mode()==fable.hideseek.imba.config.AirFixationConfig.Mode.REQUIRE_BLOCK?"§cЗдесь нельзя зафиксироваться: требуется блок §f"+rule.requiredBlock():"§cНельзя зафиксироваться в воздухе"),true);return;
+        // 2D potion uses only its own dedicated position/offset system above.
+        if (!specialPotion) {
+            double feetY=player.getBoundingBox().minY;
+            boolean inAir=support==null||feetY-support.surfaceY>.30D;
+            if(!fable.hideseek.imba.config.AirFixationConfig.isAllowedAt(state,player.getWorld(),x,y,z,inAir)){
+                var rule=fable.hideseek.imba.config.AirFixationConfig.effectiveRule(state);
+                player.sendMessage(Text.literal(rule.mode()==fable.hideseek.imba.config.AirFixationConfig.Mode.REQUIRE_BLOCK?"§cЗдесь нельзя зафиксироваться: требуется блок §f"+rule.requiredBlock():"§cНельзя зафиксироваться в воздухе"),true);return;
+            }
+            Box finalBox=MaskHitbox.getDimensions(state.type,state.item).getBoxAt(new Vec3d(x,y,z));
+            if(!player.getWorld().isSpaceEmpty(player,finalBox)){player.sendMessage(Text.literal("§cВ конечной точке маскировки недостаточно места"),true);return;}
         }
-
-        // Validate the final position after all existing snap/autoposition rules.
-        Box finalBox=MaskHitbox.getDimensions(state.type,state.item).getBoxAt(new Vec3d(x,y,z));
-        if(!player.getWorld().isSpaceEmpty(player,finalBox)){player.sendMessage(Text.literal("§cВ конечной точке маскировки недостаточно места"),true);return;}
 
         player.setPosition(x,y,z); player.setVelocity(0,0,0); player.fallDistance=0f; player.setNoGravity(true); MaskState.enableStatue(uuid,x,y,z);
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY,EFFECT_FOREVER,0,false,false,false)); player.calculateDimensions(); MaskNetworking.refresh(player); GameMessages.send(player,Text.literal("§aВы замаскировались"));
