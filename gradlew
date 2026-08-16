@@ -20,6 +20,9 @@ if [ "$(sha256sum .fifth-v041-payload.tar.gz | awk '{print $1}')" != "9a4e46a01a
   exit 2
 fi
 tar -xzf .fifth-v041-payload.tar.gz
+# Fully opaque widget plates hide Minecraft's original label before Fifth redraws it; no text ghosting/doubling.
+sed -i 's/0xE134191E : 0xDC0B0D10/0xFF34191E : 0xFF0B0D10/g; s/: 0xDE0A0B0D;/: 0xFF0A0B0D;/g' src/main/java/ru/fifth/horror/client/gui/HorrorTheme.java
+sed -i 's/hot?0xE329171B:0xE10A0C0F/hot?0xFF29171B:0xFF0A0C0F/g' src/main/java/ru/fifth/horror/mixin/SliderThemeMixin.java
 sed -i "s/net.fabricmc:fabric-loom:1.3.10/net.fabricmc:fabric-loom:1.10-SNAPSHOT/" build.gradle
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.fabricmc.fabric.api.networking.v1.ClientPlayNetworking/net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking/g' {} +
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.minecraft.block.BlockView/net.minecraft.world.BlockView/g' {} +
