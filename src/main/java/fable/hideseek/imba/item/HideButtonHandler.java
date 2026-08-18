@@ -37,6 +37,7 @@ public final class HideButtonHandler {
     private static final double SUPPORT_SAMPLE_EPSILON = 0.01D;
     private static final double SUPPORT_XZ_EPSILON = 1.0E-6D;
     private static final double STANDING_SURFACE_TOLERANCE = 0.35D;
+    private static final double SUPPORT_FOOTPRINT_OFFSET = 0.27D;
 
     private HideButtonHandler() {}
 
@@ -75,13 +76,22 @@ public final class HideButtonHandler {
             return;
         }
 
+        // Keep the exact feet anchor that existed before cancelling sneak. The
+        // client may still physically hold Shift, so using floor(Y) as fallback
+        // here can move the mask down into a slab/trapdoor/ground block.
+        double originalX = player.getX();
+        double originalY = player.getY();
+        double originalZ = player.getZ();
+
         player.setSneaking(false);
         player.setPose(EntityPose.STANDING);
         player.calculateDimensions();
 
-        double x = player.getX(), y = player.getY(), z = player.getZ();
-        boolean specialPotion = state.type == MaskType.ITEM && state.item != null && MaskService.isSpecialPotion(state.item);
-        SupportInfo support = findSupport(player);
+        double x = originalX, y = originalY, z = originalZ;
+        boolean specialPotion = state.type == MaskType.ITEM
+                && state.item != null
+                && MaskService.isSpecialPotion(state.item);
+        SupportInfo support = findSupport(player, originalX, originalY, originalZ);
         state.attachedToFrame = false;
         state.attachmentFacing = Direction.NORTH;
 
@@ -95,18 +105,18 @@ public final class HideButtonHandler {
                 z = brewing.getZ() + .5D + off.z;
             } else {
                 x = Math.floor(x) + .5D;
-                y = standingSurfaceY(player, support, Math.floor(y));
+                y = standingSurfaceY(player, support, originalY);
                 z = Math.floor(z) + .5D;
             }
         } else if (state.type == MaskType.BLOCK) {
             if (MaskBlockConfig.isFull(state.block)) {
                 x = Math.floor(x) + .5D;
-                y = standingSurfaceY(player, support, snapFullBlockY(y));
+                y = standingSurfaceY(player, support, snapFullBlockY(originalY));
                 z = Math.floor(z) + .5D;
             }
         } else if (shouldCenterOnBlock(state.type)) {
             x = Math.floor(x) + .5D;
-            y = standingSurfaceY(player, support, Math.floor(y));
+            y = standingSurfaceY(player, support, originalY);
             z = Math.floor(z) + .5D;
         } else if (state.type == MaskType.ITEM || state.type == MaskType.WALL_CLIMB) {
             Attachment attachment = findItemFrameAttachment(player);
@@ -118,7 +128,7 @@ public final class HideButtonHandler {
                 state.attachmentFacing = attachment.facing;
             } else {
                 x = Math.floor(x) + .5D;
-                y = standingSurfaceY(player, support, Math.floor(y));
+                y = standingSurfaceY(player, support, originalY);
                 z = Math.floor(z) + .5D;
             }
         }
@@ -142,7 +152,9 @@ public final class HideButtonHandler {
                 return;
             }
 
-            Box configured = state.block == null ? null : MaskHitboxConfig.worldBox(state.block, state.rotation, x, y, z);
+            Box configured = state.block == null
+                    ? null
+                    : MaskHitboxConfig.worldBox(state.block, state.rotation, x, y, z);
             Box finalBox = configured != null
                     ? configured
                     : MaskHitbox.getDimensions(state.type, state.item).getBoxAt(new Vec3d(x, y, z));
@@ -153,11 +165,15 @@ public final class HideButtonHandler {
         }
 
         player.setPosition(x, y, z);
+        // Force an authoritative position packet immediately; this prevents a
+        // still-held client Shift from briefly re-applying its crouched position.
+        player.requestTeleport(x, y, z);
         player.setVelocity(0, 0, 0);
         player.fallDistance = 0f;
         player.setNoGravity(true);
         MaskState.enableStatue(uuid, x, y, z);
-        player.addStatusEffect(new StatusEffectInstance(StatusEffects.INVISIBILITY, EFFECT_FOREVER, 0, false, false, false));
+        player.addStatusEffect(new StatusEffectInstance(
+                StatusEffects.INVISIBILITY, EFFECT_FOREVER, 0, false, false, false));
         player.calculateDimensions();
         MaskNetworking.refresh(player);
         GameMessages.send(player, Text.literal("§aВы замаскировались"));
@@ -171,14 +187,40 @@ public final class HideButtonHandler {
                 : fallback;
     }
 
-    private static SupportInfo findSupport(ServerPlayerEntity player) {
-        double x = player.getX(), feetY = player.getBoundingBox().minY, z = player.getZ();
+    /**
+     * Samples the center and edges of a normal player footprint. Sneaking lets
+     * the player's center hang beyond a ledge, so center-only support detection
+     * is exactly what made Shift+fixation fall back to floor(Y).
+     */
+    private static SupportInfo findSupport(ServerPlayerEntity player, double centerX, double feetY, double centerZ) {
+        double[] xs = {centerX, centerX - SUPPORT_FOOTPRINT_OFFSET, centerX + SUPPORT_FOOTPRINT_OFFSET};
+        double[] zs = {centerZ, centerZ - SUPPORT_FOOTPRINT_OFFSET, centerZ + SUPPORT_FOOTPRINT_OFFSET};
+        SupportInfo best = null;
+        double bestDistance = Double.MAX_VALUE;
+
+        for (double sampleX : xs) {
+            for (double sampleZ : zs) {
+                SupportInfo candidate = findSupportAt(player, sampleX, feetY, sampleZ);
+                if (candidate == null) continue;
+                double distance = Math.abs(feetY - candidate.surfaceY);
+                if (distance < bestDistance) {
+                    best = candidate;
+                    bestDistance = distance;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static SupportInfo findSupportAt(ServerPlayerEntity player, double x, double feetY, double z) {
         BlockPos feet = BlockPos.ofFloored(x, feetY + SUPPORT_XZ_EPSILON, z);
         SupportInfo inside = supportAt(player, feet, x, z);
         if (inside != null) return inside;
+
         BlockPos below = BlockPos.ofFloored(x, feetY - SUPPORT_SAMPLE_EPSILON, z);
         SupportInfo direct = supportAt(player, below, x, z);
         if (direct != null) return direct;
+
         for (int i = 1; i <= 2; i++) {
             SupportInfo candidate = supportAt(player, below.down(i), x, z);
             if (candidate != null) return candidate;
@@ -191,14 +233,16 @@ public final class HideButtonHandler {
         if (state.isAir()) return null;
         VoxelShape shape = state.getCollisionShape(player.getWorld(), pos);
         if (shape.isEmpty()) return null;
-        double localX = worldX - pos.getX(), localZ = worldZ - pos.getZ(), top = Double.NEGATIVE_INFINITY;
+        double localX = worldX - pos.getX();
+        double localZ = worldZ - pos.getZ();
+        double top = Double.NEGATIVE_INFINITY;
         for (Box box : shape.getBoundingBoxes()) {
             if (localX >= box.minX - SUPPORT_XZ_EPSILON && localX <= box.maxX + SUPPORT_XZ_EPSILON
                     && localZ >= box.minZ - SUPPORT_XZ_EPSILON && localZ <= box.maxZ + SUPPORT_XZ_EPSILON) {
                 top = Math.max(top, box.maxY);
             }
         }
-        if (!Double.isFinite(top)) top = shape.getMax(Direction.Axis.Y);
+        if (!Double.isFinite(top)) return null;
         return new SupportInfo(state.getBlock(), pos, pos.getY() + top);
     }
 
