@@ -45,10 +45,6 @@ public final class MaskHitboxNetworking {
                     return;
                 }
                 Block block = Registries.BLOCK.get(id);
-                if (MaskBlockConfig.isFull(block)) {
-                    player.sendMessage(Text.literal("§cСначала отметьте блок как НЕПОЛНЫЙ в настройщике блоков маскировки"), true);
-                    return;
-                }
                 MaskHitboxConfig.set(id, box);
                 refreshMaskedPlayers(server, block);
                 broadcastSync(server);
@@ -69,12 +65,14 @@ public final class MaskHitboxNetworking {
                 MaskHitboxConfig.clear(id);
                 refreshMaskedPlayers(server, block);
                 broadcastSync(server);
-                player.sendMessage(Text.literal("§eХитбокс сброшен к форме блока: §f" + id), true);
+                player.sendMessage(Text.literal("§eХитбокс сброшен к стандартной форме: §f" + id), true);
             });
         });
     }
 
     public static void sendSync(ServerPlayerEntity player) {
+        // NON-FULL state stays in the packet for backwards compatibility with the
+        // existing client cache, but it no longer limits what the hitbox editor can tune.
         Set<String> nonFull = MaskBlockConfig.nonFullBlocksSnapshot();
         Map<String, MaskHitboxConfig.BoxSpec> boxes = MaskHitboxConfig.snapshot();
         PacketByteBuf out = PacketByteBufs.create();
