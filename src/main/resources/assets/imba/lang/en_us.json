@@ -37,5 +37,8 @@
   "item.imba.structure_layer_tool": "Structure layer restorer",
   "item.imba.hologram_projector_tool": "Location hologram projector",
   "item.imba.panel_settings_tool": "Game panel configurator",
-  "item.imba.air_fixation_tool": "Air fixation configurator"
+  "item.imba.air_fixation_tool": "Air fixation configurator",
+  "item.imba.message_settings_tool": "Message configurator",
+  "item.imba.mask_hitbox_tool": "Non-full mask hitbox configurator",
+  "item.imba.overlay_barrier_tool": "Overlay barrier"
 }
