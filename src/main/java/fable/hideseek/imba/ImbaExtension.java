@@ -33,6 +33,7 @@ public final class ImbaExtension implements ModInitializer {
     public static final Item STRUCTURE_LAYER_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item HOLOGRAM_PROJECTOR_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item PANEL_SETTINGS_TOOL = new Item(new Item.Settings().maxCount(1));
+    public static final Item PANEL_HITBOX_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item AIR_FIXATION_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item MESSAGE_SETTINGS_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item MASK_HITBOX_TOOL = new Item(new Item.Settings().maxCount(1));
@@ -45,6 +46,7 @@ public final class ImbaExtension implements ModInitializer {
         Registry.register(Registries.ITEM, new Identifier("imba", "structure_layer_tool"), STRUCTURE_LAYER_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "hologram_projector_tool"), HOLOGRAM_PROJECTOR_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "panel_settings_tool"), PANEL_SETTINGS_TOOL);
+        Registry.register(Registries.ITEM, new Identifier("imba", "panel_hitbox_tool"), PANEL_HITBOX_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "air_fixation_tool"), AIR_FIXATION_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "message_settings_tool"), MESSAGE_SETTINGS_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "mask_hitbox_tool"), MASK_HITBOX_TOOL);
@@ -57,6 +59,7 @@ public final class ImbaExtension implements ModInitializer {
             entries.add(STRUCTURE_LAYER_TOOL);
             entries.add(HOLOGRAM_PROJECTOR_TOOL);
             entries.add(PANEL_SETTINGS_TOOL);
+            entries.add(PANEL_HITBOX_TOOL);
             entries.add(AIR_FIXATION_TOOL);
             entries.add(MESSAGE_SETTINGS_TOOL);
             entries.add(MASK_HITBOX_TOOL);
