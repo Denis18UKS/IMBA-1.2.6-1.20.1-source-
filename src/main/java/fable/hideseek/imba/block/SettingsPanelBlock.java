@@ -1,6 +1,7 @@
 package fable.hideseek.imba.block;
 
 import fable.hideseek.imba.config.GameSettingsConfig;
+import fable.hideseek.imba.config.PanelSettingsConfig;
 import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.net.MaskNetworking;
 import net.minecraft.block.Block;
@@ -108,33 +109,25 @@ public final class SettingsPanelBlock extends Block {
         if (world.isClient) return ActionResult.SUCCESS;
         if (!(player instanceof ServerPlayerEntity)) return ActionResult.PASS;
 
-        int physicalRow = state.get(ROW);
-        int column = state.get(COLUMN);
+        Direction facing = state.get(FACING);
+        Direction right = facing.rotateYCounterclockwise();
+        BlockPos origin = pos.offset(right, -state.get(COLUMN)).down(state.get(ROW));
+        double centerX = origin.getX() + .5D + right.getOffsetX();
+        double centerY = origin.getY() + 1.5D;
+        double centerZ = origin.getZ() + .5D + right.getOffsetZ();
+        double dx = hit.getPos().x - centerX;
+        double dz = hit.getPos().z - centerZ;
+        float panelX = (float) ((dx * right.getOffsetX() + dz * right.getOffsetZ()) / .021D);
+        float panelY = (float) (-(hit.getPos().y - centerY) / .021D);
 
-        // Средний ряд — только визуальная часть панели.
-        if (physicalRow == MIDDLE_ROW) return ActionResult.SUCCESS;
+        PanelSettingsConfig.Action action = PanelSettingsConfig.actionAt(panelX, panelY);
+        if (action == null) return ActionResult.SUCCESS;
 
-        // В 3x3-мультиблоке ROW=2 всегда физически верхний блок,
-        // ROW=0 всегда физически нижний. Не связываем знак изменения
-        // с координатами текста/рендера — только с реальным block-state ряда.
-        final boolean increase;
-        if (physicalRow == TOP_ROW) {
-            increase = true;
-        } else if (physicalRow == BOTTOM_ROW) {
-            increase = false;
-        } else {
-            return ActionResult.SUCCESS;
-        }
-
-        int direction = increase ? 1 : -1;
-        if (column == 0) {
-            GameConfig.setRoundSeconds(Math.max(30,
-                    Math.min(3600, GameConfig.ROUND_SECONDS + direction * 30)));
-        } else if (column == 2) {
-            GameConfig.setSeekerHearts(Math.max(1,
-                    Math.min(100, GameConfig.SEEKER_HEARTS + direction)));
-        } else {
-            return ActionResult.SUCCESS;
+        switch (action) {
+            case TIMER_UP -> GameConfig.setRoundSeconds(Math.min(3600, GameConfig.ROUND_SECONDS + 30));
+            case TIMER_DOWN -> GameConfig.setRoundSeconds(Math.max(30, GameConfig.ROUND_SECONDS - 30));
+            case HEARTS_UP -> GameConfig.setSeekerHearts(Math.min(100, GameConfig.SEEKER_HEARTS + 1));
+            case HEARTS_DOWN -> GameConfig.setSeekerHearts(Math.max(1, GameConfig.SEEKER_HEARTS - 1));
         }
 
         GameSettingsConfig.save();
