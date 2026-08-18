@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Chooses one NON-FULL mask block for precise 3D hitbox editing. */
+/** Chooses any registered block for precise 3D mask hitbox editing. */
 public final class MaskHitboxScreen extends Screen {
     private static final int ROW_HEIGHT = 26;
     private final List<Entry> all = new ArrayList<>();
@@ -31,7 +31,7 @@ public final class MaskHitboxScreen extends Screen {
     private boolean synced;
 
     public MaskHitboxScreen() {
-        super(Text.literal("Хитбоксы неполноценных масок"));
+        super(Text.literal("Хитбоксы масок"));
     }
 
     @Override
@@ -39,7 +39,7 @@ public final class MaskHitboxScreen extends Screen {
         int panelWidth = Math.min(560, width - 24);
         int left = (width - panelWidth) / 2;
         searchField = new TextFieldWidget(textRenderer, left + 12, 36, panelWidth - 24, 20, Text.empty());
-        searchField.setPlaceholder(Text.literal("Поиск неполного блока по названию или ID..."));
+        searchField.setPlaceholder(Text.literal("Поиск блока по названию или ID..."));
         searchField.setMaxLength(128);
         searchField.setChangedListener(value -> {
             rebuildFilter();
@@ -55,10 +55,10 @@ public final class MaskHitboxScreen extends Screen {
     public void rebuildFromState() {
         all.clear();
         Map<String, MaskHitboxConfig.BoxSpec> custom = MaskHitboxClientState.boxesSnapshot();
-        for (String raw : MaskHitboxClientState.nonFullSnapshot()) {
-            Identifier id = Identifier.tryParse(raw);
-            if (id == null || !Registries.BLOCK.containsId(id)) continue;
-            all.add(new Entry(Registries.BLOCK.get(id), id, custom.containsKey(raw)));
+        for (Block block : Registries.BLOCK) {
+            Identifier id = Registries.BLOCK.getId(block);
+            if (id == null) continue;
+            all.add(new Entry(block, id, custom.containsKey(id.toString())));
         }
         all.sort(Comparator.comparing(entry -> entry.id.toString()));
         synced = true;
@@ -93,8 +93,8 @@ public final class MaskHitboxScreen extends Screen {
         border(context, left, top, panelWidth, bottom - top, 0xFF777777);
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 17, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
-                synced ? "Здесь показываются только блоки, отмеченные как НЕПОЛНЫЙ. Выберите блок для 3D-редактора."
-                        : "Получение списка с сервера...",
+                synced ? "Показываются все зарегистрированные блоки. Выберите любой блок для 3D-редактора."
+                        : "Получение настроек с сервера...",
                 width / 2, 59, synced ? 0xFFAAAAAA : 0xFFFFFF55);
 
         int rowLeft = left + 12;
@@ -112,7 +112,7 @@ public final class MaskHitboxScreen extends Screen {
             if (!icon.isEmpty()) context.drawItem(icon, rowLeft + 2, y + 3);
             context.drawTextWithShadow(textRenderer, trim(entry.block.getName().getString(), 235), rowLeft + 23, y + 3, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, trim(entry.id.toString(), 235), rowLeft + 23, y + 12, 0xFF888888);
-            String status = entry.custom ? "РУЧНОЙ ХИТБОКС" : "ФОРМА БЛОКА";
+            String status = entry.custom ? "РУЧНОЙ ХИТБОКС" : "ПО УМОЛЧАНИЮ";
             int statusColor = entry.custom ? 0xFFAAFFAA : 0xFFFFFF55;
             context.drawTextWithShadow(textRenderer, status, rowRight - textRenderer.getWidth(status) - 6, y + 7, statusColor);
             y += ROW_HEIGHT;
