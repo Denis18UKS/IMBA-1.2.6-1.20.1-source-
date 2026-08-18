@@ -37,5 +37,8 @@
   "item.imba.structure_layer_tool": "Восстановитель слоёв структуры",
   "item.imba.hologram_projector_tool": "Голопроектор локаций",
   "item.imba.panel_settings_tool": "Настройщик игровой панели",
-  "item.imba.air_fixation_tool": "Настройщик фиксации в воздухе"
+  "item.imba.air_fixation_tool": "Настройщик фиксации в воздухе",
+  "item.imba.message_settings_tool": "Настройщик сообщений",
+  "item.imba.overlay_barrier": "Накладываемый барьер",
+  "item.imba.mask_hitbox_tool": "Настройщик хитбоксов неполных маскировок"
 }

@@ -4,12 +4,14 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import fable.hideseek.imba.config.*;
 import fable.hideseek.imba.game.*;
 import fable.hideseek.imba.item.RoundRestoreToolHandler;
+import fable.hideseek.imba.item.OverlayBarrierToolHandler;
 import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskState;
 import fable.hideseek.imba.net.*;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.command.argument.GameProfileArgumentType;
@@ -20,6 +22,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameRules;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +35,9 @@ public final class ImbaExtension implements ModInitializer {
     public static final Item HOLOGRAM_PROJECTOR_TOOL=new Item(new Item.Settings().maxCount(1));
     public static final Item PANEL_SETTINGS_TOOL=new Item(new Item.Settings().maxCount(1));
     public static final Item AIR_FIXATION_TOOL=new Item(new Item.Settings().maxCount(1));
+    public static final Item MESSAGE_SETTINGS_TOOL=new Item(new Item.Settings().maxCount(1));
+    public static final Item OVERLAY_BARRIER=new Item(new Item.Settings().maxCount(1));
+    public static final Item MASK_HITBOX_TOOL=new Item(new Item.Settings().maxCount(1));
 
     @Override public void onInitialize(){
         Registry.register(Registries.ITEM,new Identifier("imba","block_rules_tool"),BLOCK_RULES_TOOL);
@@ -40,12 +46,16 @@ public final class ImbaExtension implements ModInitializer {
         Registry.register(Registries.ITEM,new Identifier("imba","hologram_projector_tool"),HOLOGRAM_PROJECTOR_TOOL);
         Registry.register(Registries.ITEM,new Identifier("imba","panel_settings_tool"),PANEL_SETTINGS_TOOL);
         Registry.register(Registries.ITEM,new Identifier("imba","air_fixation_tool"),AIR_FIXATION_TOOL);
+        Registry.register(Registries.ITEM,new Identifier("imba","message_settings_tool"),MESSAGE_SETTINGS_TOOL);
+        Registry.register(Registries.ITEM,new Identifier("imba","overlay_barrier"),OVERLAY_BARRIER);
+        Registry.register(Registries.ITEM,new Identifier("imba","mask_hitbox_tool"),MASK_HITBOX_TOOL);
         RegistryKey<ItemGroup> group=RegistryKey.of(RegistryKeys.ITEM_GROUP,new Identifier("imba","main"));
-        ItemGroupEvents.modifyEntriesEvent(group).register(e->{e.add(BLOCK_RULES_TOOL);e.add(BLOCK_RESTORE_TOOL);e.add(STRUCTURE_LAYER_TOOL);e.add(HOLOGRAM_PROJECTOR_TOOL);e.add(PANEL_SETTINGS_TOOL);e.add(AIR_FIXATION_TOOL);});
-        AirFixationConfig.load();BreakRulesConfig.load();RoundRestoreConfig.load();HologramConfig.load();PanelSettingsConfig.load();
-        AirFixationNetworking.register();BlockRulesNetworking.register();RoundRestoreNetworking.register();HologramNetworking.register();PanelSettingsNetworking.register();RoundRestoreToolHandler.register();DoorMaskCollisionHandler.register();
+        ItemGroupEvents.modifyEntriesEvent(group).register(e->{e.add(BLOCK_RULES_TOOL);e.add(BLOCK_RESTORE_TOOL);e.add(STRUCTURE_LAYER_TOOL);e.add(HOLOGRAM_PROJECTOR_TOOL);e.add(PANEL_SETTINGS_TOOL);e.add(AIR_FIXATION_TOOL);e.add(MESSAGE_SETTINGS_TOOL);e.add(OVERLAY_BARRIER);e.add(MASK_HITBOX_TOOL);});
+        AirFixationConfig.load();BreakRulesConfig.load();RoundRestoreConfig.load();HologramConfig.load();PanelSettingsConfig.load();MessageSettingsConfig.load();OverlayBarrierConfig.load();MaskHitboxConfig.load();
+        AirFixationNetworking.register();BlockRulesNetworking.register();RoundRestoreNetworking.register();HologramNetworking.register();PanelSettingsNetworking.register();MessageSettingsNetworking.register();MaskHitboxNetworking.register();RoundRestoreToolHandler.register();OverlayBarrierToolHandler.register();DoorMaskCollisionHandler.register();
         AttackEntityCallback.EVENT.register((player,world,hand,entity,hit)->!world.isClient&&GameRoles.isHider(player)&&GameManager.isCurrentParticipant(player)?ActionResult.FAIL:ActionResult.PASS);
-        ServerPlayConnectionEvents.JOIN.register((handler,sender,server)->{HologramNetworking.sendSync(handler.getPlayer());PanelSettingsNetworking.sendSync(handler.getPlayer());});
+        ServerPlayConnectionEvents.JOIN.register((handler,sender,server)->{HologramNetworking.sendSync(handler.getPlayer());PanelSettingsNetworking.sendSync(handler.getPlayer());MessageSettingsNetworking.sendSync(handler.getPlayer());OverlayBarrierNetworking.sendSync(handler.getPlayer());MaskHitboxNetworking.sendSync(handler.getPlayer());});
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> server.getGameRules().get(GameRules.ANNOUNCE_ADVANCEMENTS).set(false, server));
         registerCommands();
     }
 
