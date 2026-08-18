@@ -56,6 +56,10 @@ public final class ImbaClientExtension implements ClientModInitializer {
                 client.setScreen(new GameSettingsScreen());
                 return TypedActionResult.success(stack);
             }
+            if (stack.isOf(ImbaExtension.PANEL_HITBOX_TOOL)) {
+                client.setScreen(new PanelHitboxScreen(null));
+                return TypedActionResult.success(stack);
+            }
             if (stack.isOf(ImbaExtension.AIR_FIXATION_TOOL)) {
                 client.setScreen(new AirFixationConfigScreen());
                 return TypedActionResult.success(stack);
