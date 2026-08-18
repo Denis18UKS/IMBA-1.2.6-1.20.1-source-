@@ -18,7 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Per-block 3D hitbox tuning for blocks classified as NON-FULL. Values are model pixels (16 = 1 block). */
+/** Per-block 3D mask hitbox tuning. Values are model pixels (16 = 1 block). */
 public final class MaskHitboxConfig {
     public static final int MIN_COORD = -32;
     public static final int MAX_COORD = 48;
@@ -141,7 +141,10 @@ public final class MaskHitboxConfig {
 
     /** Returns a world-space configured box centered on mask anchor X/Z and based at anchor Y. */
     public static Box worldBox(Block block, float rotation, double anchorX, double anchorY, double anchorZ) {
-        if (block == null || MaskBlockConfig.isFull(block)) return null;
+        if (block == null) return null;
+        // Preserve the old full-block cube unless the administrator explicitly
+        // created a custom hitbox for this exact block in the new editor.
+        if (MaskBlockConfig.isFull(block) && !hasCustom(block)) return null;
         BoxSpec spec = effective(block);
         Box local = new Box(spec.minX / 16.0D, spec.minY / 16.0D, spec.minZ / 16.0D,
                 spec.maxX / 16.0D, spec.maxY / 16.0D, spec.maxZ / 16.0D);
@@ -152,7 +155,6 @@ public final class MaskHitboxConfig {
     private static Box rotateY(Box box, int steps) {
         Box result = box;
         for (int i = 0; i < steps; i++) {
-            // Rotate all X/Z extents around the center of a block cell.
             result = new Box(
                     1.0D - result.maxZ, result.minY, result.minX,
                     1.0D - result.minZ, result.maxY, result.maxX);
