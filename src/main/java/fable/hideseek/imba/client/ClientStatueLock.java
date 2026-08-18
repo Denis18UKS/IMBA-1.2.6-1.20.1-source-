@@ -2,23 +2,25 @@ package fable.hideseek.imba.client;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.Vec3d;
 
-/** Keeps statues on their anchor without continuously fighting camera interpolation. */
+/** Keeps statue position exact while leaving camera rotation free. */
 public final class ClientStatueLock {
     private ClientStatueLock() {}
 
-    /**
-     * Called exactly on MOVING -> STATUE transition. Local interpolation and
-     * input are collapsed once here; subsequent statue ticks do not rewrite
-     * prev/render coordinates, which avoids camera jitter.
-     */
     public static boolean enter(PlayerEntity player, double anchorX, double anchorY, double anchorZ) {
         if (player == null) return false;
+        Vec3d anchor = new Vec3d(anchorX, anchorY, anchorZ);
+        boolean local = MinecraftClient.getInstance().player == player;
+        Vec3d oldPos = player.getPos();
+
         player.setNoGravity(true);
         player.setVelocity(Vec3d.ZERO);
         player.fallDistance = 0.0F;
+        player.setSneaking(false);
+        player.setPose(EntityPose.STANDING);
 
         if (player instanceof ClientPlayerEntity clientPlayer) {
             if (clientPlayer.input != null) {
@@ -30,15 +32,18 @@ public final class ClientStatueLock {
             clientPlayer.setSprinting(false);
         }
 
-        if (player.getPos().squaredDistanceTo(anchorX, anchorY, anchorZ) > 1.0E-8D) {
+        if (oldPos.squaredDistanceTo(anchor) > 1.0E-8D) {
+            if (local) ClientCameraTransition.begin(oldPos, anchor);
             player.setPosition(anchorX, anchorY, anchorZ);
         }
+
         player.prevX = anchorX;
         player.prevY = anchorY;
         player.prevZ = anchorZ;
         player.lastRenderX = anchorX;
         player.lastRenderY = anchorY;
         player.lastRenderZ = anchorZ;
+        player.calculateDimensions();
         return true;
     }
 
@@ -46,15 +51,11 @@ public final class ClientStatueLock {
         if (player == null || !ClientMaskData.isStatue(player.getUuid())) return false;
         Vec3d anchor = ClientMaskData.getStatueAnchor(player.getUuid());
         if (anchor == null) return false;
-
         player.setNoGravity(true);
         player.setVelocity(Vec3d.ZERO);
         player.fallDistance = 0.0F;
-
-        // The local player's position/render history is synchronized only once
-        // in enter(). Rewriting it every tick is exactly what causes camera jitter.
+        player.setSneaking(false);
         if (MinecraftClient.getInstance().player == player) return true;
-
         player.setPosition(anchor.x, anchor.y, anchor.z);
         player.prevX = anchor.x;
         player.prevY = anchor.y;
@@ -67,6 +68,7 @@ public final class ClientStatueLock {
 
     public static void release(PlayerEntity player) {
         if (player == null) return;
+        if (MinecraftClient.getInstance().player == player) ClientCameraTransition.clear();
         player.setNoGravity(false);
         player.fallDistance = 0.0F;
         player.prevX = player.getX();
