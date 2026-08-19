@@ -59,10 +59,14 @@ public final class MaskHitboxConfig {
                 data.boxes.forEach((id, box) -> {
                     Identifier parsed = Identifier.tryParse(id);
                     if (parsed != null && Registries.BLOCK.containsId(parsed) && box != null) {
-                        BOXES.put(parsed.toString(), sanitize(box));
+                        BOXES.put(parsed.toString(), normalizeSpecial(parsed, sanitize(box)));
                     }
                 });
             }
+            // Older builds could persist the placed blade outline (a thin vertical
+            // plate) as the disguise hitbox. Re-save after normalization so an old
+            // config cannot restore that geometry on the next server start.
+            save();
         } catch (IOException | RuntimeException e) {
             System.err.println("[IMBA] Не удалось загрузить хитбоксы масок: " + e.getMessage());
         }
@@ -82,15 +86,19 @@ public final class MaskHitboxConfig {
 
     public static BoxSpec effective(Block block) {
         BoxSpec custom = custom(block);
-        return custom != null ? custom : defaultFor(block);
+        if (custom != null) {
+            Identifier id = Registries.BLOCK.getId(block);
+            return normalizeSpecial(id, custom);
+        }
+        return defaultFor(block);
     }
 
     public static BoxSpec defaultFor(Block block) {
         if (block == null) return new BoxSpec(0, 0, 0, 16, 16, 16);
 
-        // imba:stonrcutter_lezvie has a thin vertical outline as a placed blade,
-        // but the disguise shown to players is the horizontal stonecutter/slab body.
-        // Its default mask collision therefore fills the lower half of one block.
+        // imba:stonrcutter_lezvie is modeled as a horizontal stonecutter/slab
+        // disguise. The placed helper blade itself has a thin vertical outline,
+        // which must never leak into the player's mask collision.
         if (block == ImbaMod.STONRCUTTER_LEZVIE) {
             return new BoxSpec(0, 0, 0, 16, 8, 16);
         }
@@ -110,7 +118,7 @@ public final class MaskHitboxConfig {
 
     public static void set(Identifier id, BoxSpec box) {
         if (id == null || box == null || !Registries.BLOCK.containsId(id)) return;
-        BOXES.put(id.toString(), sanitize(box));
+        BOXES.put(id.toString(), normalizeSpecial(id, sanitize(box)));
         save();
     }
 
@@ -133,7 +141,7 @@ public final class MaskHitboxConfig {
         values.forEach((id, box) -> {
             Identifier parsed = Identifier.tryParse(id);
             if (parsed != null && Registries.BLOCK.containsId(parsed) && box != null) {
-                BOXES.put(parsed.toString(), sanitize(box));
+                BOXES.put(parsed.toString(), normalizeSpecial(parsed, sanitize(box)));
             }
         });
     }
@@ -147,6 +155,18 @@ public final class MaskHitboxConfig {
                 spec.maxX / 16.0D, spec.maxY / 16.0D, spec.maxZ / 16.0D);
         local = rotateY(local, Math.floorMod(Math.round(rotation / 90.0F), 4));
         return local.offset(anchorX - 0.5D, anchorY, anchorZ - 0.5D);
+    }
+
+    private static BoxSpec normalizeSpecial(Identifier id, BoxSpec box) {
+        if (id == null || box == null) return box;
+        Identifier bladeId = Registries.BLOCK.getId(ImbaMod.STONRCUTTER_LEZVIE);
+        if (!id.equals(bladeId)) return box;
+
+        int sizeX = box.maxX - box.minX;
+        int sizeY = box.maxY - box.minY;
+        int sizeZ = box.maxZ - box.minZ;
+        boolean verticalBlade = sizeY > 8 && Math.min(sizeX, sizeZ) <= 4;
+        return verticalBlade ? new BoxSpec(0, 0, 0, 16, 8, 16) : box;
     }
 
     private static Box rotateY(Box box, int steps) {
