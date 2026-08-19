@@ -6,12 +6,16 @@ import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.game.GameMessages;
 import fable.hideseek.imba.game.RoundDefinition;
+import fable.hideseek.imba.mask.MaskCollisionShapes;
+import fable.hideseek.imba.mask.MaskService;
+import fable.hideseek.imba.mask.MaskState;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Final;
@@ -135,6 +139,62 @@ public abstract class GameManagerExtensionMixin {
             teleport(ordered.get(i), currentRound.worldKey, separated,
                     currentRound.seekerYaw, currentRound.seekerPitch);
         }
+    }
+
+    /**
+     * Replace the seeker-only collision pass with one that treats a fixed mask
+     * as real world geometry for every ordinary player. This is especially
+     * important for /imba_mask testing outside an active seeker role.
+     */
+    @Inject(method = "handleMaskCollisions", at = @At("HEAD"), cancellable = true, remap = false)
+    private static void imba$solidMaskCollisionForAllPlayers(MinecraftServer server, CallbackInfo ci) {
+        if (server == null) {
+            ci.cancel();
+            return;
+        }
+
+        for (ServerPlayerEntity maskedPlayer : server.getPlayerManager().getPlayerList()) {
+            if (!MaskState.hasMask(maskedPlayer.getUuid())) continue;
+            var state = MaskState.get(maskedPlayer.getUuid());
+            if (!state.statue || !MaskService.hasPhysicalCollision(state)) continue;
+
+            for (Box maskBox : MaskCollisionShapes.create(state)) {
+                for (ServerPlayerEntity other : server.getPlayerManager().getPlayerList()) {
+                    if (other == maskedPlayer || other.isSpectator()
+                            || other.getWorld() != maskedPlayer.getWorld()
+                            || MaskState.isStatue(other.getUuid())) {
+                        continue;
+                    }
+
+                    Box otherBox = other.getBoundingBox();
+                    boolean overlapsXZ = otherBox.maxX > maskBox.minX && otherBox.minX < maskBox.maxX
+                            && otherBox.maxZ > maskBox.minZ && otherBox.minZ < maskBox.maxZ;
+                    if (overlapsXZ && other.getVelocity().y <= 0.0D
+                            && otherBox.minY >= maskBox.maxY - 0.35D
+                            && otherBox.minY <= maskBox.maxY + 0.20D) {
+                        if (Math.abs(other.getY() - maskBox.maxY) > 0.001D) {
+                            other.setPosition(other.getX(), maskBox.maxY, other.getZ());
+                        }
+                        Vec3d velocity = other.getVelocity();
+                        other.setVelocity(velocity.x, 0.0D, velocity.z);
+                        other.setOnGround(true);
+                        other.fallDistance = 0.0F;
+                        continue;
+                    }
+
+                    if (!otherBox.intersects(maskBox)) continue;
+                    Vec3d correction = MaskCollisionShapes.nearestHorizontalSeparation(otherBox, maskBox);
+                    if (correction.lengthSquared() <= 1.0E-12D) continue;
+
+                    other.setPosition(other.getX() + correction.x, other.getY(), other.getZ() + correction.z);
+                    Vec3d velocity = other.getVelocity();
+                    other.setVelocity(correction.x == 0.0D ? velocity.x : 0.0D,
+                            velocity.y,
+                            correction.z == 0.0D ? velocity.z : 0.0D);
+                }
+            }
+        }
+        ci.cancel();
     }
 
     /**
