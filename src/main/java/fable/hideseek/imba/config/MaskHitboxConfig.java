@@ -36,9 +36,7 @@ public final class MaskHitboxConfig {
         public int maxY;
         public int maxZ;
 
-        public BoxSpec() {
-        }
-
+        public BoxSpec() {}
         public BoxSpec(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
             this.minX = minX;
             this.minY = minY;
@@ -47,21 +45,14 @@ public final class MaskHitboxConfig {
             this.maxY = maxY;
             this.maxZ = maxZ;
         }
-
-        public BoxSpec copy() {
-            return new BoxSpec(minX, minY, minZ, maxX, maxY, maxZ);
-        }
+        public BoxSpec copy() { return new BoxSpec(minX, minY, minZ, maxX, maxY, maxZ); }
     }
 
-    private MaskHitboxConfig() {
-    }
+    private MaskHitboxConfig() {}
 
     public static void load() {
         BOXES.clear();
-        if (!Files.exists(PATH)) {
-            save();
-            return;
-        }
+        if (!Files.exists(PATH)) { save(); return; }
         try {
             Data data = GSON.fromJson(Files.readString(PATH), Data.class);
             if (data != null && data.boxes != null) {
@@ -113,8 +104,7 @@ public final class MaskHitboxConfig {
                         toPixelFloor(box.minX), toPixelFloor(box.minY), toPixelFloor(box.minZ),
                         toPixelCeil(box.maxX), toPixelCeil(box.maxY), toPixelCeil(box.maxZ)));
             }
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         return new BoxSpec(0, 0, 0, 16, 16, 16);
     }
 
@@ -151,9 +141,6 @@ public final class MaskHitboxConfig {
     /** Returns a world-space configured box centered on mask anchor X/Z and based at anchor Y. */
     public static Box worldBox(Block block, float rotation, double anchorX, double anchorY, double anchorZ) {
         if (block == null) return null;
-        // Preserve the old full-block cube unless the administrator explicitly
-        // created a custom hitbox. The stonecutter blade is the one built-in
-        // exception: its disguise collision is intentionally a horizontal half-block.
         if (MaskBlockConfig.isFull(block) && !hasCustom(block) && block != ImbaMod.STONRCUTTER_LEZVIE) return null;
         BoxSpec spec = effective(block);
         Box local = new Box(spec.minX / 16.0D, spec.minY / 16.0D, spec.minZ / 16.0D,
@@ -165,8 +152,7 @@ public final class MaskHitboxConfig {
     private static Box rotateY(Box box, int steps) {
         Box result = box;
         for (int i = 0; i < steps; i++) {
-            result = new Box(
-                    1.0D - result.maxZ, result.minY, result.minX,
+            result = new Box(1.0D - result.maxZ, result.minY, result.minX,
                     1.0D - result.minZ, result.maxY, result.maxX);
         }
         return result;
@@ -184,17 +170,9 @@ public final class MaskHitboxConfig {
         return new BoxSpec(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
-    private static int clamp(int value) {
-        return Math.max(MIN_COORD, Math.min(MAX_COORD, value));
-    }
-
-    private static int toPixelFloor(double value) {
-        return (int) Math.floor(value * 16.0D + 1.0E-6D);
-    }
-
-    private static int toPixelCeil(double value) {
-        return (int) Math.ceil(value * 16.0D - 1.0E-6D);
-    }
+    private static int clamp(int value) { return Math.max(MIN_COORD, Math.min(MAX_COORD, value)); }
+    private static int toPixelFloor(double value) { return (int) Math.floor(value * 16.0D + 1.0E-6D); }
+    private static int toPixelCeil(double value) { return (int) Math.ceil(value * 16.0D - 1.0E-6D); }
 
     private static void save() {
         try {
@@ -209,12 +187,7 @@ public final class MaskHitboxConfig {
 
     private static final class Data {
         Map<String, BoxSpec> boxes = new HashMap<>();
-
-        Data() {
-        }
-
-        Data(Map<String, BoxSpec> boxes) {
-            this.boxes = boxes;
-        }
+        Data() {}
+        Data(Map<String, BoxSpec> boxes) { this.boxes = boxes; }
     }
 }
