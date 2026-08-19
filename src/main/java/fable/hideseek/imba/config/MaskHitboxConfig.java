@@ -97,9 +97,9 @@ public final class MaskHitboxConfig {
     public static BoxSpec defaultFor(Block block) {
         if (block == null) return new BoxSpec(0, 0, 0, 16, 16, 16);
 
-        // This custom blade is rendered like a horizontal stonecutter/slab when
-        // worn as a disguise. Its block outline is a thin vertical blade, which
-        // must not be reused as the player's physical mask collision.
+        // imba:stonrcutter_lezvie has a thin vertical outline as a placed blade,
+        // but the disguise shown to players is the horizontal stonecutter/slab body.
+        // Its default mask collision therefore fills the lower half of one block.
         if (block == ImbaMod.STONRCUTTER_LEZVIE) {
             return new BoxSpec(0, 0, 0, 16, 8, 16);
         }
