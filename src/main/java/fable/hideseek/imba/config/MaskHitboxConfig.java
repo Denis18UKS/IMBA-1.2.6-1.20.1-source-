@@ -2,6 +2,7 @@ package fable.hideseek.imba.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import fable.hideseek.imba.ImbaMod;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -95,6 +96,14 @@ public final class MaskHitboxConfig {
 
     public static BoxSpec defaultFor(Block block) {
         if (block == null) return new BoxSpec(0, 0, 0, 16, 16, 16);
+
+        // This custom blade is rendered like a horizontal stonecutter/slab when
+        // worn as a disguise. Its block outline is a thin vertical blade, which
+        // must not be reused as the player's physical mask collision.
+        if (block == ImbaMod.STONRCUTTER_LEZVIE) {
+            return new BoxSpec(0, 0, 0, 16, 8, 16);
+        }
+
         try {
             BlockState state = block.getDefaultState();
             var shape = state.getOutlineShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN);
@@ -143,8 +152,9 @@ public final class MaskHitboxConfig {
     public static Box worldBox(Block block, float rotation, double anchorX, double anchorY, double anchorZ) {
         if (block == null) return null;
         // Preserve the old full-block cube unless the administrator explicitly
-        // created a custom hitbox for this exact block in the new editor.
-        if (MaskBlockConfig.isFull(block) && !hasCustom(block)) return null;
+        // created a custom hitbox. The stonecutter blade is the one built-in
+        // exception: its disguise collision is intentionally a horizontal half-block.
+        if (MaskBlockConfig.isFull(block) && !hasCustom(block) && block != ImbaMod.STONRCUTTER_LEZVIE) return null;
         BoxSpec spec = effective(block);
         Box local = new Box(spec.minX / 16.0D, spec.minY / 16.0D, spec.minZ / 16.0D,
                 spec.maxX / 16.0D, spec.maxY / 16.0D, spec.maxZ / 16.0D);
