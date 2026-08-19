@@ -1,6 +1,5 @@
 package fable.hideseek.imba.client;
 
-import fable.hideseek.imba.game.GameRoles;
 import fable.hideseek.imba.mask.MaskCollisionShapes;
 import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskType;
@@ -14,20 +13,23 @@ public final class ClientMaskCollision {
     private ClientMaskCollision() {}
 
     public static void tick(MinecraftClient client) {
-        if (client.player == null || client.world == null || !GameRoles.isSeeker(client.player)) return;
+        if (client.player == null || client.world == null || client.player.isSpectator()
+                || ClientMaskData.isStatue(client.player.getUuid())) return;
         for (AbstractClientPlayerEntity masked : client.world.getPlayers()) {
-            if (masked == client.player || !ClientMaskData.hasMask(masked.getUuid()) || !ClientMaskData.isStatue(masked.getUuid())) continue;
+            if (masked == client.player || !ClientMaskData.hasMask(masked.getUuid())
+                    || !ClientMaskData.isStatue(masked.getUuid())) continue;
             MaskType type = ClientMaskData.TYPES.get(masked.getUuid());
-            if (type != MaskType.DOOR && !MaskService.hasPhysicalCollision(type, ClientMaskData.BLOCKS.get(masked.getUuid()))) continue;
+            if (type != MaskType.DOOR
+                    && !MaskService.hasPhysicalCollision(type, ClientMaskData.BLOCKS.get(masked.getUuid()))) continue;
             var obstacles = MaskCollisionShapes.create(type, ClientMaskData.BLOCKS.get(masked.getUuid()),
                     ClientMaskData.ROTATIONS.getOrDefault(masked.getUuid(), 0.0F),
                     ClientMaskData.DOOR_OPEN.getOrDefault(masked.getUuid(), false),
                     masked.getX(), masked.getY(), masked.getZ());
-            for (Box obstacle : obstacles) resolve(client, masked, obstacle);
+            for (Box obstacle : obstacles) resolve(client, obstacle);
         }
     }
 
-    private static void resolve(MinecraftClient client, AbstractClientPlayerEntity masked, Box obstacle) {
+    private static void resolve(MinecraftClient client, Box obstacle) {
         Box playerBox = client.player.getBoundingBox();
         boolean overlapXZ = playerBox.maxX > obstacle.minX && playerBox.minX < obstacle.maxX
                 && playerBox.maxZ > obstacle.minZ && playerBox.minZ < obstacle.maxZ;
@@ -53,7 +55,8 @@ public final class ClientMaskCollision {
 
     public static boolean canKeepSneakMovement(Vec3d movement) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.world == null || !GameRoles.isSeeker(client.player)) return false;
+        if (client.player == null || client.world == null || client.player.isSpectator()
+                || ClientMaskData.isStatue(client.player.getUuid())) return false;
         Box current = client.player.getBoundingBox();
         Box moved = current.offset(movement.x, 0.0D, movement.z);
         for (AbstractClientPlayerEntity masked : client.world.getPlayers()) {
