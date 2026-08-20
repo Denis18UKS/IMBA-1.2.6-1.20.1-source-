@@ -28,7 +28,8 @@
     "AdvancementDisableMixin",
     "ServerPlayerMessageFilterMixin",
     "OverlayBarrierCollisionMixin",
-    "ConfiguredMaskBoundingBoxMixin"
+    "ConfiguredMaskBoundingBoxMixin",
+    "StonecutterMaskCollisionMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -49,7 +50,8 @@
     "client.MaskShadowMixin",
     "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin",
-    "client.ClientConfiguredMaskBoundingBoxMixin"
+    "client.ClientConfiguredMaskBoundingBoxMixin",
+    "client.ClientStonecutterMaskCollisionMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }
