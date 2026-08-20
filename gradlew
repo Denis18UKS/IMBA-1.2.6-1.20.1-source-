@@ -27,7 +27,7 @@ if [ -d src/main/resources/assets/fifth ]; then mv src/main/resources/assets/fif
 if [ -d src/main/resources/data/fifth ]; then mv src/main/resources/data/fifth src/main/resources/data/fiven; fi
 find src/main/java -name '*.java' -type f -exec sed -i 's/fifth:/fiven:/g; s/resolve("fifth")/resolve("fiven")/g' {} +
 find src/main/resources/assets/fiven -type f \( -name '*.json' -o -name '*.mcmeta' \) -exec sed -i 's/fifth:/fiven:/g; s/\.fifth\./.fiven./g; s/geometry\.fifth\./geometry.fiven./g' {} +
-base64 -d .fiven-v050-overlay.b64 > .fiven-v050-overlay.tar.gz
+cat .fiven-v050-overlay-00 .fiven-v050-overlay-01 .fiven-v050-overlay-02 | base64 -d > .fiven-v050-overlay.tar.gz
 if [ "$(sha256sum .fiven-v050-overlay.tar.gz | awk '{print $1}')" != "769c876089fcfa843ce4b6a8cad0cc249296c7b71f8275c9a1e1da15def8a13a" ]; then echo 'Fiven 0.5.0 overlay checksum mismatch' >&2; exit 2; fi
 tar -xzf .fiven-v050-overlay.tar.gz
 
