@@ -31,6 +31,15 @@ cat .fiven-v050-overlay-00 .fiven-v050-overlay-01 .fiven-v050-overlay-02 | base6
 if [ "$(sha256sum .fiven-v050-overlay.tar.gz | awk '{print $1}')" != "769c876089fcfa843ce4b6a8cad0cc249296c7b71f8275c9a1e1da15def8a13a" ]; then echo 'Fiven 0.5.0 overlay checksum mismatch' >&2; exit 2; fi
 tar -xzf .fiven-v050-overlay.tar.gz
 
+# Fiven 0.6.0: elevator floors, vanilla stone-button binding, visual NPC/MFL editors,
+# cutscene library + VHS/TV scaffolding and animation-condition tools.
+base64 -d .fiven-v060-overlay.b64 > .fiven-v060-overlay.tar.gz
+if [ "$(sha256sum .fiven-v060-overlay.tar.gz | awk '{print $1}')" != "45cf82a0b6c2f3b07fb7819b1a3598045a5dbffdaaa3e77b113fc8196b4e50bd" ]; then
+  echo 'Fiven 0.6.0 overlay checksum mismatch' >&2
+  exit 2
+fi
+tar -xzf .fiven-v060-overlay.tar.gz
+
 sed -i "s/net.fabricmc:fabric-loom:1.3.10/net.fabricmc:fabric-loom:1.10-SNAPSHOT/" build.gradle
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.fabricmc.fabric.api.networking.v1.ClientPlayNetworking/net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking/g' {} +
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.minecraft.block.BlockView/net.minecraft.world.BlockView/g' {} +
