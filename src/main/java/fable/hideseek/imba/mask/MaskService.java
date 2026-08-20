@@ -2,19 +2,147 @@ package fable.hideseek.imba.mask;
 
 import fable.hideseek.imba.ImbaMod;
 import fable.hideseek.imba.net.MaskNetworking;
-import net.minecraft.block.Block;import net.minecraft.block.BlockState;import net.minecraft.block.Blocks;import net.minecraft.block.ButtonBlock;import net.minecraft.block.DoorBlock;import net.minecraft.block.LadderBlock;
-import net.minecraft.entity.effect.StatusEffects;import net.minecraft.entity.player.PlayerEntity;import net.minecraft.item.Item;import net.minecraft.item.Items;import net.minecraft.server.network.ServerPlayerEntity;import net.minecraft.util.math.BlockPos;import net.minecraft.util.math.Direction;import net.minecraft.util.math.Vec3d;import net.minecraft.world.EmptyBlockView;
-import java.util.HashMap;import java.util.Map;import java.util.UUID;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.ButtonBlock;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.LadderBlock;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.Items;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.EmptyBlockView;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public final class MaskService {
- private static final int RESET_RECOVERY_PASSES=2; private static final Map<UUID,Integer> RESET_RECOVERY=new HashMap<>(); private MaskService(){}
- public static void applyBlockMask(ServerPlayerEntity player,Block block){applyMask(player,resolveBlockType(block),block,null);} public static void applyItemMask(ServerPlayerEntity player,Item item){applyMask(player,resolveItemType(item),null,item);}
- public static void resetMask(ServerPlayerEntity player){UUID uuid=player.getUuid();MaskState.disableStatue(uuid);MaskState.reset(uuid);double x=player.getX(),y=player.getY(),z=player.getZ();player.removeStatusEffect(StatusEffects.INVISIBILITY);player.setNoGravity(false);player.setVelocity(Vec3d.ZERO);player.fallDistance=0.0f;MaskResetGeometry.forceStanding(player);player.requestTeleport(x,y,z);MaskResetGeometry.forceStanding(player);RESET_RECOVERY.put(uuid,RESET_RECOVERY_PASSES);MaskNetworking.sendMaskReset(player);MaskNetworking.sendStatueSync(player,false);}
- public static void tickResetRecovery(PlayerEntity player){if(player==null||player.getWorld().isClient)return;UUID uuid=player.getUuid();Integer remaining=RESET_RECOVERY.get(uuid);if(remaining==null)return;if(MaskState.hasMask(uuid)){RESET_RECOVERY.remove(uuid);return;}MaskResetGeometry.forceStanding(player);if(remaining<=1)RESET_RECOVERY.remove(uuid);else RESET_RECOVERY.put(uuid,remaining-1);}
- private static void applyMask(ServerPlayerEntity player,MaskType type,Block block,Item item){UUID uuid=player.getUuid();RESET_RECOVERY.remove(uuid);MaskState state=MaskState.get(uuid);state.type=type;state.block=block;state.item=item;state.rotation=0f;state.rotationX=0f;state.rotationZ=0f;state.doorOpen=false;state.buttonPressed=false;state.buttonTicks=0;state.sculkStepCount=0;state.wallClimbing=true;state.wallAttached=false;state.attachedToFrame=false;state.attachmentFacing=Direction.NORTH;state.frameRotationStep=0;MaskState.disableStatue(uuid);player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(StatusEffects.INVISIBILITY,Integer.MAX_VALUE,0,false,false,false));snapToSingleBlock(player);player.calculateDimensions();MaskNetworking.sendMaskUpdate(player,type,block,item);MaskNetworking.sendStatueSync(player,false);}
- private static void snapToSingleBlock(ServerPlayerEntity player){double x=Math.floor(player.getX())+.5D,y=Math.floor(player.getY()),z=Math.floor(player.getZ())+.5D;player.requestTeleport(x,y,z);player.setVelocity(Vec3d.ZERO);player.fallDistance=0f;}
- public static MaskType resolveBlockType(Block block){if(block instanceof DoorBlock)return MaskType.DOOR;if(block==Blocks.NETHER_PORTAL)return MaskType.PORTAL;if(block instanceof LadderBlock)return MaskType.LADDER_REVERSED;if(block instanceof ButtonBlock)return MaskType.BUTTON;if(block==Blocks.SCULK_VEIN)return MaskType.SCULK_VEIN;if(block==Blocks.LANTERN||block==ImbaMod.HANGING_LANTERN)return MaskType.LANTERN;if(block==Blocks.ATTACHED_PUMPKIN_STEM)return MaskType.STEM;return MaskType.BLOCK;}
- public static MaskType resolveItemType(Item item){return item==Items.APPLE?MaskType.WALL_CLIMB:MaskType.ITEM;} public static boolean isSpecialPotion(Item item){return item==ImbaMod.POTION_2D;}
- public static boolean hasPhysicalCollision(MaskState state){return state!=null&&hasPhysicalCollision(state.type,state.block);} public static boolean hasPhysicalCollision(MaskType type,Block block){if(type==null||type==MaskType.NONE)return false;if(type==MaskType.LADDER_REVERSED||block instanceof LadderBlock)return false;if(type==MaskType.DOOR)return false;if(block==null)return false;BlockState blockState=block.getDefaultState();return !blockState.getCollisionShape(EmptyBlockView.INSTANCE,BlockPos.ORIGIN).isEmpty();}
- public static boolean supportsWallClimbing(MaskState state){return state!=null&&(state.type==MaskType.WALL_CLIMB||state.block==ImbaMod.GLOWBERRIES||state.block==ImbaMod.HANGING_LANTERN);}
+    private static final int RESET_RECOVERY_PASSES = 2;
+    private static final Map<UUID, Integer> RESET_RECOVERY = new HashMap<>();
+
+    private MaskService() {
+    }
+
+    public static void applyBlockMask(ServerPlayerEntity player, Block block) {
+        applyMask(player, resolveBlockType(block), block, null);
+    }
+
+    public static void applyItemMask(ServerPlayerEntity player, Item item) {
+        applyMask(player, resolveItemType(item), null, item);
+    }
+
+    public static void resetMask(ServerPlayerEntity player) {
+        UUID uuid = player.getUuid();
+        MaskState.disableStatue(uuid);
+        MaskState.reset(uuid);
+        double x = player.getX(), y = player.getY(), z = player.getZ();
+        player.removeStatusEffect(StatusEffects.INVISIBILITY);
+        player.setNoGravity(false);
+        player.setVelocity(Vec3d.ZERO);
+        player.fallDistance = 0.0f;
+        MaskResetGeometry.forceStanding(player);
+        player.requestTeleport(x, y, z);
+        MaskResetGeometry.forceStanding(player);
+        RESET_RECOVERY.put(uuid, RESET_RECOVERY_PASSES);
+        MaskNetworking.sendMaskReset(player);
+        MaskNetworking.sendStatueSync(player, false);
+    }
+
+    public static void tickResetRecovery(PlayerEntity player) {
+        if (player == null || player.getWorld().isClient) return;
+        UUID uuid = player.getUuid();
+        Integer remaining = RESET_RECOVERY.get(uuid);
+        if (remaining == null) return;
+        if (MaskState.hasMask(uuid)) {
+            RESET_RECOVERY.remove(uuid);
+            return;
+        }
+        MaskResetGeometry.forceStanding(player);
+        if (remaining <= 1) RESET_RECOVERY.remove(uuid);
+        else RESET_RECOVERY.put(uuid, remaining - 1);
+    }
+
+    private static void applyMask(ServerPlayerEntity player, MaskType type, Block block, Item item) {
+        UUID uuid = player.getUuid();
+        RESET_RECOVERY.remove(uuid);
+        MaskState state = MaskState.get(uuid);
+        state.type = type;
+        state.block = block;
+        state.item = item;
+        state.rotation = 0f;
+        state.rotationX = 0f;
+        state.rotationZ = 0f;
+        state.doorOpen = false;
+        state.buttonPressed = false;
+        state.buttonTicks = 0;
+        state.sculkStepCount = 0;
+        state.wallClimbing = true;
+        state.wallAttached = false;
+        state.attachedToFrame = false;
+        state.attachmentFacing = Direction.NORTH;
+        state.frameRotationStep = 0;
+        MaskState.disableStatue(uuid);
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
+                StatusEffects.INVISIBILITY, Integer.MAX_VALUE, 0, false, false, false));
+        snapToSingleBlock(player);
+        player.calculateDimensions();
+        MaskNetworking.sendMaskUpdate(player, type, block, item);
+        MaskNetworking.sendStatueSync(player, false);
+    }
+
+    private static void snapToSingleBlock(ServerPlayerEntity player) {
+        double x = Math.floor(player.getX()) + .5D;
+        double y = player.getY();
+        double z = Math.floor(player.getZ()) + .5D;
+        // Do not floor Y here. A closed trapdoor, slab, stair or another partial
+        // support can have a fractional top surface; flooring Y used to push the
+        // player into/below that support as soon as a mask was equipped.
+        player.requestTeleport(x, y, z);
+        player.setVelocity(Vec3d.ZERO);
+        player.fallDistance = 0f;
+    }
+
+    public static MaskType resolveBlockType(Block block) {
+        if (block instanceof DoorBlock) return MaskType.DOOR;
+        if (block == Blocks.NETHER_PORTAL) return MaskType.PORTAL;
+        if (block instanceof LadderBlock) return MaskType.LADDER_REVERSED;
+        if (block instanceof ButtonBlock) return MaskType.BUTTON;
+        if (block == Blocks.SCULK_VEIN) return MaskType.SCULK_VEIN;
+        if (block == Blocks.LANTERN || block == ImbaMod.HANGING_LANTERN) return MaskType.LANTERN;
+        if (block == Blocks.ATTACHED_PUMPKIN_STEM) return MaskType.STEM;
+        return MaskType.BLOCK;
+    }
+
+    public static MaskType resolveItemType(Item item) {
+        return item == Items.APPLE ? MaskType.WALL_CLIMB : MaskType.ITEM;
+    }
+
+    public static boolean isSpecialPotion(Item item) {
+        return item == ImbaMod.POTION_2D;
+    }
+
+    public static boolean hasPhysicalCollision(MaskState state) {
+        return state != null && hasPhysicalCollision(state.type, state.block);
+    }
+
+    public static boolean hasPhysicalCollision(MaskType type, Block block) {
+        if (type == null || type == MaskType.NONE) return false;
+        if (type == MaskType.LADDER_REVERSED || block instanceof LadderBlock) return false;
+        if (type == MaskType.DOOR) return false;
+        if (block == null) return false;
+        BlockState blockState = block.getDefaultState();
+        return !blockState.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).isEmpty();
+    }
+
+    public static boolean supportsWallClimbing(MaskState state) {
+        return state != null && (state.type == MaskType.WALL_CLIMB
+                || state.block == ImbaMod.GLOWBERRIES
+                || state.block == ImbaMod.HANGING_LANTERN);
+    }
 }

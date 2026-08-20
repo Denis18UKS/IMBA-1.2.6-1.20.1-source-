@@ -1,5 +1,6 @@
 package fable.hideseek.imba.mask;
 
+import fable.hideseek.imba.config.MaskHitboxConfig;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.enums.DoorHinge;
@@ -38,6 +39,15 @@ public final class MaskCollisionShapes {
             return result;
         }
         if (!MaskService.hasPhysicalCollision(type, block)) return List.of();
+
+        // Use the hitbox editor geometry whenever it applies. This covers
+        // NON-FULL blocks, administrator overrides for any block, and built-in
+        // special defaults such as the horizontal stonecutter-blade disguise.
+        if (block != null) {
+            Box configured = MaskHitboxConfig.worldBox(block, rotation, x, y, z);
+            if (configured != null) return List.of(configured);
+        }
+
         BlockState source = block.getDefaultState();
         List<Box> result = new ArrayList<>();
         append(result, source, x, y, z);

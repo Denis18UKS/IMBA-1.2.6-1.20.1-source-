@@ -15,7 +15,7 @@ import java.util.Locale;
 
 /** Полный редактор значений и внешнего вида 3x3-панели. */
 public final class GameSettingsScreen extends Screen {
-    public static final String BUILD_MARKER = "PANEL-V2";
+    public static final String BUILD_MARKER = "PANEL-V3-HITBOX";
 
     private int seconds = PanelData.seconds;
     private int hearts = PanelData.hearts;
@@ -35,7 +35,7 @@ public final class GameSettingsScreen extends Screen {
     private TextFieldWidget downArrowY;
 
     public GameSettingsScreen() {
-        super(Text.literal("Редактор панели IMBA v2"));
+        super(Text.literal("Редактор панели IMBA v3"));
     }
 
     @Override
@@ -43,7 +43,6 @@ public final class GameSettingsScreen extends Screen {
         int left = width / 2 - 230;
         int top = Math.max(8, height / 2 - 174);
 
-        // Значения игры.
         addDrawableChild(ButtonWidget.builder(Text.literal("Таймер +30"), b -> changeSeconds(30))
                 .dimensions(left, top + 30, 106, 20).build());
         addDrawableChild(ButtonWidget.builder(Text.literal("Таймер -30"), b -> changeSeconds(-30))
@@ -53,11 +52,9 @@ public final class GameSettingsScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.literal("Сердца -1"), b -> changeHearts(-1))
                 .dimensions(left + 354, top + 30, 106, 20).build());
 
-        // Названия.
         timerLabel = field(left, top + 78, 218, PanelData.timerLabel, 24);
         heartsLabel = field(left + 242, top + 78, 218, PanelData.heartsLabel, 24);
 
-        // Размеры.
         timerTitleScale = field(left, top + 126, 102, fmt(PanelData.timerTitleScale), 8);
         heartsTitleScale = field(left + 114, top + 126, 102, fmt(PanelData.heartsTitleScale), 8);
         timerValueScale = field(left + 242, top + 126, 102, fmt(PanelData.timerValueScale), 8);
@@ -69,7 +66,6 @@ public final class GameSettingsScreen extends Screen {
         addDrawableChild(ButtonWidget.builder(Text.literal("Все размеры +0.10"), b -> adjustAllScales(0.10F))
                 .dimensions(left + 286, top + 174, 174, 20).build());
 
-        // Положение.
         timerX = field(left, top + 222, 102, Integer.toString(PanelData.timerX), 8);
         heartsX = field(left + 114, top + 222, 102, Integer.toString(PanelData.heartsX), 8);
         titleY = field(left + 242, top + 222, 102, Integer.toString(PanelData.titleY), 8);
@@ -77,8 +73,12 @@ public final class GameSettingsScreen extends Screen {
 
         valueY = field(left, top + 270, 102, Integer.toString(PanelData.valueY), 8);
         downArrowY = field(left + 114, top + 270, 102, Integer.toString(PanelData.downArrowY), 8);
-        addDrawableChild(ButtonWidget.builder(Text.literal("Стандартные X/Y"), b -> resetPositionFields())
-                .dimensions(left + 242, top + 270, 218, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Стандарт X/Y"), b -> resetPositionFields())
+                .dimensions(left + 242, top + 270, 102, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Хитбоксы ▲▼"), b -> {
+                    if (client != null) client.setScreen(new PanelHitboxScreen(this));
+                })
+                .dimensions(left + 356, top + 270, 104, 20).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("ПРИМЕНИТЬ ВСЁ"), b -> sendAll())
                 .dimensions(left, top + 310, 146, 20).build());
@@ -215,7 +215,7 @@ public final class GameSettingsScreen extends Screen {
         int top = Math.max(8, height / 2 - 174);
 
         context.drawCenteredTextWithShadow(textRenderer,
-                "Редактор панели IMBA v2  [" + BUILD_MARKER + "]",
+                "Редактор панели IMBA v3  [" + BUILD_MARKER + "]",
                 width / 2, top, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
                 "Текущие значения: " + String.format("%02d:%02d", seconds / 60, seconds % 60)
@@ -243,7 +243,7 @@ public final class GameSettingsScreen extends Screen {
         label(context, "Y нижних ▼", left + 114, top + 258);
 
         context.drawTextWithShadow(textRenderer,
-                "Scale 0.40–3.00 • X -120…120 • Y -100…100 • кнопка «ПРИМЕНИТЬ ВСЁ» сохраняет на сервере",
+                "Scale 0.40–3.00 • X -120…120 • Y -100…100 • хитбоксы ▲/▼ редактируются отдельной кнопкой",
                 left, top + 296, 0xFF888888);
 
         super.render(context, mouseX, mouseY, delta);

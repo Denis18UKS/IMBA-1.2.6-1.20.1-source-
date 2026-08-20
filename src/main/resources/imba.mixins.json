@@ -21,9 +21,15 @@
     "TntMinecartEntityMixin",
     "MaskServiceGuardMixin",
     "GameManagerExtensionMixin",
+    "GameAutoResumeMixin",
     "PortalRoundIconMixin",
     "HiderDamageMixin",
-    "HideButtonSafetyMixin"
+    "HideButtonSafetyMixin",
+    "AdvancementDisableMixin",
+    "ServerPlayerMessageFilterMixin",
+    "OverlayBarrierCollisionMixin",
+    "ConfiguredMaskBoundingBoxMixin",
+    "StonecutterMaskCollisionMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -43,7 +49,9 @@
     "client.PlayerEntityClientMixin",
     "client.MaskShadowMixin",
     "client.ClientDoorCollisionMixin",
-    "client.ClientWallClimbingMixin"
+    "client.ClientWallClimbingMixin",
+    "client.ClientConfiguredMaskBoundingBoxMixin",
+    "client.ClientStonecutterMaskCollisionMixin"
   ],
   "injectors": { "defaultRequire": 1 }
 }

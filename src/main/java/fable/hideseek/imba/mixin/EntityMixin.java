@@ -1,7 +1,6 @@
 package fable.hideseek.imba.mixin;
 
 import fable.hideseek.imba.game.GameManager;
-import fable.hideseek.imba.game.GameRoles;
 import fable.hideseek.imba.mask.MaskCollisionShapes;
 import fable.hideseek.imba.mask.MaskState;
 import net.minecraft.entity.Entity;
@@ -20,14 +19,15 @@ public class EntityMixin {
             CallbackInfoReturnable<Vec3d> cir) {
         Entity self = (Entity) (Object) this;
         if (self.getWorld().isClient || !self.isSneaking()
-                || !(self instanceof PlayerEntity seeker) || !GameRoles.isSeeker(seeker)) {
+                || !(self instanceof PlayerEntity player) || self.isSpectator()
+                || MaskState.isStatue(player.getUuid())) {
             return;
         }
 
         Box current = self.getBoundingBox();
         Box moved = current.offset(movement.x, 0.0D, movement.z);
         for (PlayerEntity masked : self.getWorld().getPlayers()) {
-            if (masked == seeker || !MaskState.isStatue(masked.getUuid())) {
+            if (masked == player || !MaskState.isStatue(masked.getUuid())) {
                 continue;
             }
             for (Box obstacle : MaskCollisionShapes.create(MaskState.get(masked.getUuid()))) {
@@ -48,8 +48,8 @@ public class EntityMixin {
         boolean selfMasked = self instanceof PlayerEntity player && MaskState.isStatue(player.getUuid());
         boolean otherMasked = other instanceof PlayerEntity player && MaskState.isStatue(player.getUuid());
         if (selfMasked || otherMasked) {
-            // Full block masks are handled by GameManager's stable block-style
-            // collision. Every other mask intentionally has no physical push.
+            // Static disguises use IMBA's stable block-style collision pass instead
+            // of vanilla player pushing, so the disguised player cannot be shoved.
             cir.setReturnValue(false);
         }
     }
