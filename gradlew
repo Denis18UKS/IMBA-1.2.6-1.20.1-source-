@@ -55,8 +55,7 @@ if [ "$(sha256sum .fiven-v060-delta2.tar.gz | awk '{print $1}')" != "6d4640c8645
 fi
 tar -xzf .fiven-v060-delta2.tar.gz
 
-# Build exactly on the Fabric 1.20.1 / Java 17 / Loom 1.3.10 line used by PR #6.
-sed -i 's/net.fabricmc:fabric-loom:1.10-SNAPSHOT/net.fabricmc:fabric-loom:1.3.10/g' build.gradle
+# Fabric 1.20.1 / Java 17 build. Keep Fiven's Loom 1.10-SNAPSHOT because GeckoLib 4.8.4 requires newer mixin-remap metadata support.
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.fabricmc.fabric.api.networking.v1.ClientPlayNetworking/net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking/g' {} +
 find src/main/java -name '*.java' -type f -exec sed -i 's/net.minecraft.block.BlockView/net.minecraft.world.BlockView/g' {} +
 
