@@ -1,0 +1,150 @@
++        for (NpcInfo n : npcLibrary) {
++            if (q.isBlank() || n.id.toLowerCase(Locale.ROOT).contains(q) || n.name.toLowerCase(Locale.ROOT).contains(q) || n.world.toLowerCase(Locale.ROOT).contains(q)) out.add(n);
++        }
++        return out;
++    }
++
++    private void insertTemplate() {
++        if (editor == null) {
++            narrowView = 0;
++            rebuildPreserving();
++            status = "Открыл редактор кода. Повтори вставку шаблона.";
++            return;
++        }
++        String npc = selectedNpc.isBlank() ? "npc_id" : selectedNpc;
++        String scriptName = name == null || name.getText().isBlank() ? "main" : name.getText();
++        String code = TEMPLATES[templateIndex].code.replace("%NPC%", npc).replace("%SCRIPT%", scriptName);
++        String current = editor.getText();
++        if (!current.isBlank() && !current.endsWith("\n")) current += "\n";
++        editor.setText(current + code + "\n");
++        status = selectedNpc.isBlank() ? "Шаблон вставлен. Замени npc_id или выбери NPC в библиотеке." : "Шаблон вставлен для NPC: " + selectedNpc;
++    }
++
++    private void switchNarrow(int view) {
++        if (narrowView == view) return;
++        narrowView = view;
++        rebuildPreserving();
++    }
++
++    private void rebuildPreserving() {
++        if (client == null || rebuilding) return;
++        rebuilding = true;
++        clearAndInit();
++        rebuilding = false;
++    }
++
++    public void updateNpcLibrary(List<NpcInfo> rows) {
++        List<NpcInfo> fresh = rows == null ? List.of() : List.copyOf(rows);
++        if (fresh.equals(npcLibrary)) return;
++        npcLibrary = fresh;
++        if (!selectedNpc.isBlank() && npcLibrary.stream().noneMatch(n -> n.id.equals(selectedNpc))) selectedNpc = "";
++        status = "Автообнаружено NPC: " + npcLibrary.size();
++        rebuildPreserving();
++    }
++
++    private void requestNpcLibrary() {
++        if (client == null || client.getNetworkHandler() == null) return;
++        ClientPlayNetworking.send(FifthNetworking.REQUEST_NPC_LIBRARY, PacketByteBufs.create());
++        refreshTicks = 0;
++    }
++
++    @Override
++    public void tick() {
++        super.tick();
++        if (editor != null) editor.tick();
++        if (++refreshTicks >= 40) requestNpcLibrary();
++    }
++
++    private void validateScript() {
++        if (editor == null) return;
++        String s = editor.getText();
++        int depth = 0;
++        boolean bad = false;
++        for (char c : s.toCharArray()) {
++            if (c == '{') depth++;
++            if (c == '}') depth--;
++            if (depth < 0) bad = true;
++        }
++        status = !bad && depth == 0 ? "Синтаксис блоков: OK" : "Ошибка: несбалансированные { }";
++    }
++
++    private void save() {
++        if (name == null || editor == null) return;
++        PacketByteBuf out = PacketByteBufs.create();
++        out.writeBlockPos(pos);
++        out.writeString(name.getText(), 128);
++        out.writeString(editor.getText(), 1_000_000);
++        ClientPlayNetworking.send(FifthNetworking.SAVE_COMPUTER, out);
++        status = "Сохранено";
++    }
++
++    private void run() {
++        if (name == null || editor == null) return;
++        save();
++        PacketByteBuf out = PacketByteBufs.create();
++        out.writeString(name.getText(), 128);
++        ClientPlayNetworking.send(FifthNetworking.RUN_COMPUTER, out);
++        status = "Сценарий запущен";
++    }
++
++    @Override
++    public void render(DrawContext c, int mx, int my, float d) {
++        horrorBackground(c);
++        int m = Math.max(8, Math.min(16, width / 42));
++        boolean wide = width >= 700 && height >= 285;
++        if (wide) {
++            int rightW = Math.max(218, Math.min(300, width / 3));
++            int leftW = Math.max(320, width - m * 3 - rightW);
++            int top = safeTop();
++            panel(c, m - 3, top - 4, leftW + 6, Math.max(70, height - safeBottom() - top + 8));
++            panel(c, m * 2 + leftW - 3, top - 4, rightW + 6, Math.max(70, height - safeBottom() - top + 8));
++            c.drawTextWithShadow(textRenderer, "КОД / .fifth.php", m + 4, top - 13, 0xFFC5B2A8);
++            c.drawTextWithShadow(textRenderer, "ЖИВАЯ БИБЛИОТЕКА NPC", m * 2 + leftW + 4, top - 13, 0xFFC5B2A8);
++            if (!selectedNpc.isBlank()) c.drawTextWithShadow(textRenderer, "Выбран: " + selectedNpc, m * 2 + leftW + 5, height - safeBottom() - 111, 0xFFD88E92);
++        }
++        if (!status.isBlank()) {
++            String shown = textRenderer.trimToWidth(status, Math.max(80, width - 20));
++            c.drawCenteredTextWithShadow(textRenderer, shown, width / 2, Math.max(31, safeTop() - 14), status.startsWith("Ошибка") ? 0xFFFF8585 : 0xFFB9A8A0);
++        }
++        super.render(c, mx, my, d);
++    }
+ }
+diff --git a/src/main/java/ru/fifth/horror/item/NpcPathToolItem.java b/src/main/java/ru/fifth/horror/item/NpcPathToolItem.java
+index b39ab0f..5ef621d 100644
+--- a/src/main/java/ru/fifth/horror/item/NpcPathToolItem.java
++++ b/src/main/java/ru/fifth/horror/item/NpcPathToolItem.java
+@@ -9,39 +9,98 @@ import net.minecraft.server.world.ServerWorld;
+ import net.minecraft.text.Text;
+ import net.minecraft.util.ActionResult;
+ import net.minecraft.util.Hand;
++import net.minecraft.util.math.Box;
+ import net.minecraft.util.math.Vec3d;
+ import ru.fifth.horror.entity.DirectorNpcEntity;
+ 
++import java.util.Map;
+ import java.util.UUID;
++import java.util.concurrent.ConcurrentHashMap;
+ 
++/**
++ * Route authoring tool. The current NPC is stored both in the stack NBT and in a server-side per-player cache.
++ * The cache fixes creative/inventory synchronisation cases where the client replaces the held stack and used to lose the selected NPC.
++ */
+ public class NpcPathToolItem extends Item {
++    private record Selection(UUID uuid, String npcId) {}
++    private static final Map<UUID, Selection> SELECTIONS = new ConcurrentHashMap<>();
++
+     public NpcPathToolItem(Settings settings) { super(settings); }
+ 
+     @Override
+     public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
+-        if (user.getWorld().isClient) return ActionResult.SUCCESS;
+         if (!(entity instanceof DirectorNpcEntity npc)) return ActionResult.PASS;
+-        stack.getOrCreateNbt().putUuid("FifthNpc", npc.getUuid());
+-        user.sendMessage(Text.literal("§8[§cПятый§8] §7Привязан NPC: §f" + npc.getNpcId()), true);
++        if (user.getWorld().isClient) return ActionResult.SUCCESS;
++
++        Selection selection = new Selection(npc.getUuid(), npc.getNpcId());
++        SELECTIONS.put(user.getUuid(), selection);
++
++        // Write to both references deliberately. In creative mode the stack argument can be replaced during inventory sync.
++        remember(stack, selection);
