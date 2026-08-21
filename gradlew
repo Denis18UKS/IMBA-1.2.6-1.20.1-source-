@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -eu
+set -u
 
 rm -rf src build.gradle gradle.properties settings.gradle README.md
 
