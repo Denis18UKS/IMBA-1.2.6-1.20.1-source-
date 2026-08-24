@@ -25,7 +25,8 @@
     "HiderDamageMixin",
     "HideButtonSafetyMixin",
     "OverlayBarrierCollisionMixin",
-    "ServerPlayerMessageFilterMixin"
+    "ServerPlayerMessageFilterMixin",
+    "FixationTeleportSyncMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -46,7 +47,8 @@
     "client.MaskShadowMixin",
     "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin",
-    "client.AdvancementToastMixin"
+    "client.AdvancementToastMixin",
+    "client.ClientStatueSyncMixin"
   ],
   "injectors": {"defaultRequire": 1}
 }
