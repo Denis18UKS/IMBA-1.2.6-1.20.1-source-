@@ -11,7 +11,6 @@ import net.minecraft.util.Identifier;
 /** Server-authoritative synchronization for the editable 3x3 panel layout. */
 public final class PanelSettingsNetworking {
     public static final Identifier SET_LAYOUT = new Identifier("imba", "panel_layout_set");
-    public static final Identifier SET_HITBOXES = new Identifier("imba", "panel_hitboxes_set");
     public static final Identifier RESET_LAYOUT = new Identifier("imba", "panel_layout_reset");
     public static final Identifier SYNC_LAYOUT = new Identifier("imba", "panel_layout_sync");
     public static final Identifier OPEN_SCREEN = new Identifier("imba", "panel_settings_open");
@@ -38,16 +37,6 @@ public final class PanelSettingsNetworking {
                 PanelSettingsConfig.setLayout(timerLabel, heartsLabel,
                         timerTitleScale, heartsTitleScale, timerValueScale, heartsValueScale,
                         arrowScale, timerX, heartsX, titleY, upArrowY, valueY, downArrowY);
-                broadcastSync(server);
-            });
-        });
-
-        ServerPlayNetworking.registerGlobalReceiver(SET_HITBOXES, (server, player, handler, buf, responseSender) -> {
-            PanelSettingsConfig.Hitbox[] boxes = new PanelSettingsConfig.Hitbox[4];
-            for (int i = 0; i < 4; i++) boxes[i] = new PanelSettingsConfig.Hitbox(buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat());
-            server.execute(() -> {
-                if (!player.hasPermissionLevel(2)) return;
-                PanelSettingsConfig.setHitboxes(boxes[0], boxes[1], boxes[2], boxes[3]);
                 broadcastSync(server);
             });
         });
@@ -80,15 +69,7 @@ public final class PanelSettingsNetworking {
         buf.writeInt(PanelSettingsConfig.upArrowY());
         buf.writeInt(PanelSettingsConfig.valueY());
         buf.writeInt(PanelSettingsConfig.downArrowY());
-        writeHitbox(buf, PanelSettingsConfig.timerUp());
-        writeHitbox(buf, PanelSettingsConfig.timerDown());
-        writeHitbox(buf, PanelSettingsConfig.heartsUp());
-        writeHitbox(buf, PanelSettingsConfig.heartsDown());
         ServerPlayNetworking.send(player, SYNC_LAYOUT, buf);
-    }
-
-    private static void writeHitbox(PacketByteBuf buf, PanelSettingsConfig.Hitbox h) {
-        buf.writeFloat(h.x); buf.writeFloat(h.y); buf.writeFloat(h.width); buf.writeFloat(h.height);
     }
 
     public static void broadcastSync(MinecraftServer server) {

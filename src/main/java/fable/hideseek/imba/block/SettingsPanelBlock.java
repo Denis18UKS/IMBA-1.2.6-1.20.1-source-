@@ -1,7 +1,7 @@
 package fable.hideseek.imba.block;
 
 import fable.hideseek.imba.config.GameSettingsConfig;
-import fable.hideseek.imba.config.PanelSettingsConfig;
+import fable.hideseek.imba.config.PanelHitboxConfig;
 import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.net.MaskNetworking;
 import net.minecraft.block.Block;
@@ -18,6 +18,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 public final class SettingsPanelBlock extends Block {
@@ -26,8 +27,9 @@ public final class SettingsPanelBlock extends Block {
     public static final IntProperty ROW = IntProperty.of("row", 0, 2);
 
     private static final int BOTTOM_ROW = 0;
-    private static final int MIDDLE_ROW = 1;
     private static final int TOP_ROW = 2;
+    /** Must stay identical to WorldPanelRenderer.begin(...). */
+    private static final double PANEL_RENDER_SCALE = 0.021D;
 
     private boolean assembling;
     private boolean dismantling;
@@ -109,29 +111,50 @@ public final class SettingsPanelBlock extends Block {
         if (world.isClient) return ActionResult.SUCCESS;
         if (!(player instanceof ServerPlayerEntity)) return ActionResult.PASS;
 
-        Direction facing = state.get(FACING);
-        Direction right = facing.rotateYCounterclockwise();
-        BlockPos origin = pos.offset(right, -state.get(COLUMN)).down(state.get(ROW));
-        double centerX = origin.getX() + .5D + right.getOffsetX();
-        double centerY = origin.getY() + 1.5D;
-        double centerZ = origin.getZ() + .5D + right.getOffsetZ();
-        double dx = hit.getPos().x - centerX;
-        double dz = hit.getPos().z - centerZ;
-        float panelX = (float) ((dx * right.getOffsetX() + dz * right.getOffsetZ()) / .021D);
-        float panelY = (float) (-(hit.getPos().y - centerY) / .021D);
+        PanelHitboxConfig.Arrow arrow = findClickedArrow(state, pos, hit);
+        if (arrow == null) {
+            // The physical 3x3 panel is still one multiblock, but only the four
+            // configured rectangles are interactive now.
+            return ActionResult.SUCCESS;
+        }
 
-        PanelSettingsConfig.Action action = PanelSettingsConfig.actionAt(panelX, panelY);
-        if (action == null) return ActionResult.SUCCESS;
-
-        switch (action) {
-            case TIMER_UP -> GameConfig.setRoundSeconds(Math.min(3600, GameConfig.ROUND_SECONDS + 30));
-            case TIMER_DOWN -> GameConfig.setRoundSeconds(Math.max(30, GameConfig.ROUND_SECONDS - 30));
-            case HEARTS_UP -> GameConfig.setSeekerHearts(Math.min(100, GameConfig.SEEKER_HEARTS + 1));
-            case HEARTS_DOWN -> GameConfig.setSeekerHearts(Math.max(1, GameConfig.SEEKER_HEARTS - 1));
+        switch (arrow) {
+            case TIMER_UP -> GameConfig.setRoundSeconds(Math.max(30,
+                    Math.min(3600, GameConfig.ROUND_SECONDS + 30)));
+            case TIMER_DOWN -> GameConfig.setRoundSeconds(Math.max(30,
+                    Math.min(3600, GameConfig.ROUND_SECONDS - 30)));
+            case HEARTS_UP -> GameConfig.setSeekerHearts(Math.max(1,
+                    Math.min(100, GameConfig.SEEKER_HEARTS + 1)));
+            case HEARTS_DOWN -> GameConfig.setSeekerHearts(Math.max(1,
+                    Math.min(100, GameConfig.SEEKER_HEARTS - 1)));
         }
 
         GameSettingsConfig.save();
         MaskNetworking.broadcastPanelData(player.getServer());
         return ActionResult.SUCCESS;
+    }
+
+    private static PanelHitboxConfig.Arrow findClickedArrow(BlockState state, BlockPos pos, BlockHitResult hit) {
+        Direction facing = state.get(FACING);
+        // The visual controls live on the front surface only. Side/back clicks
+        // must not accidentally change values.
+        if (hit.getSide() != facing) return null;
+
+        Direction right = facing.rotateYCounterclockwise();
+        BlockPos origin = pos.offset(right, -state.get(COLUMN)).down(state.get(ROW));
+
+        // Same origin/scale as WorldPanelRenderer.begin(): the renderer is
+        // centered on column 1 and halfway up the 3-block panel.
+        Vec3d center = new Vec3d(
+                origin.getX() + 0.5D + right.getOffsetX(),
+                origin.getY() + 1.5D,
+                origin.getZ() + 0.5D + right.getOffsetZ());
+        Vec3d delta = hit.getPos().subtract(center);
+
+        double horizontal = delta.x * right.getOffsetX() + delta.z * right.getOffsetZ();
+        double panelX = horizontal / PANEL_RENDER_SCALE;
+        // Renderer applies a negative Y scale, hence the sign flip.
+        double panelY = -delta.y / PANEL_RENDER_SCALE;
+        return PanelHitboxConfig.hit(panelX, panelY);
     }
 }

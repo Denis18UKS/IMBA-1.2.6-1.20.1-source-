@@ -8,11 +8,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Last-resort filter for legacy restriction messages that are sent directly. */
+/** Suppresses only known IMBA messages whose catalogue entry is disabled. */
 @Mixin(ServerPlayerEntity.class)
 public abstract class ServerPlayerMessageFilterMixin {
     @Inject(method = "sendMessage(Lnet/minecraft/text/Text;Z)V", at = @At("HEAD"), cancellable = true)
-    private void imba$filterConfiguredLegacyMessages(Text message, boolean overlay, CallbackInfo ci) {
-        if (message != null && !MessageSettingsConfig.shouldShowText(message.getString())) ci.cancel();
+    private void imba$filterConfiguredMessages(Text message, boolean overlay, CallbackInfo ci) {
+        if (!MessageSettingsConfig.shouldShow(message)) {
+            ci.cancel();
+        }
     }
 }

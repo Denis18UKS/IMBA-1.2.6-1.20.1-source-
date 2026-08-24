@@ -19,10 +19,6 @@ public final class PanelData {
     public static int upArrowY = -26;
     public static int valueY = 0;
     public static int downArrowY = 28;
-    public static fable.hideseek.imba.config.PanelSettingsConfig.Hitbox timerUpHitbox = new fable.hideseek.imba.config.PanelSettingsConfig.Hitbox(-38, -26, 34, 20);
-    public static fable.hideseek.imba.config.PanelSettingsConfig.Hitbox timerDownHitbox = new fable.hideseek.imba.config.PanelSettingsConfig.Hitbox(-38, 28, 34, 20);
-    public static fable.hideseek.imba.config.PanelSettingsConfig.Hitbox heartsUpHitbox = new fable.hideseek.imba.config.PanelSettingsConfig.Hitbox(38, -26, 34, 20);
-    public static fable.hideseek.imba.config.PanelSettingsConfig.Hitbox heartsDownHitbox = new fable.hideseek.imba.config.PanelSettingsConfig.Hitbox(38, 28, 34, 20);
 
     public static int selectedLocation = 0;
     public static int locationCount = 12;

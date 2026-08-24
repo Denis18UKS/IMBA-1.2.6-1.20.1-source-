@@ -1,13 +1,181 @@
 package fable.hideseek.imba.config;
 
-import com.google.gson.Gson;import com.google.gson.GsonBuilder;import net.fabricmc.loader.api.FabricLoader;import java.io.IOException;import java.nio.file.Files;import java.nio.file.Path;import java.nio.file.StandardCopyOption;import java.util.LinkedHashMap;import java.util.List;import java.util.Map;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.text.Text;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * Server-side catalogue of IMBA feedback messages.
+ *
+ * Restrictions themselves are never disabled here: only their HUD text can be
+ * hidden. Unknown vanilla/mod messages are not touched.
+ */
 public final class MessageSettingsConfig {
- public record Entry(String key,String title,boolean defaultEnabled){}
- public static final List<Entry> CATALOG=List.of(new Entry("restriction.item_frame","Рамки: предметы можно класть только в Creative",false),new Entry("restriction.interactive_block","Запрещён интерактивный блок",false),new Entry("restriction.interactive_entity","Запрещена интерактивная сущность",false),new Entry("restriction.chest_during_game","Во время игры нельзя открывать сундуки",false),new Entry("restriction.team_change","Во время игры нельзя менять команду",false),new Entry("mask.need_model","Сначала надень модель",false),new Entry("mask.air_forbidden","Нельзя зафиксироваться в воздухе",false),new Entry("mask.air_requires_block","Для фиксации требуется определённый блок",false),new Entry("mask.no_space","В конечной точке маскировки недостаточно места",false),new Entry("mask.model_equipped","Надета модель",false),new Entry("mask.statue_enter","Вы зафиксировались",false),new Entry("mask.statue_exit","Вы вышли из режима фиксации",false),new Entry("wall_climb.state","Ползание по стенам: ВКЛ/ВЫКЛ",false),new Entry("wall_climb.unsupported","Эта маскировка не умеет ползать",false),new Entry("hint.mask_controls","Подсказка клавиш вращения/ползания",true),new Entry("seeker.eliminated","У искателя закончились сердца",true),new Entry("game.already_running","Игра уже запущена",false),new Entry("game.start_requirements","Для запуска нужны минимум 2 игрока",true),new Entry("game.pause","Игра поставлена на паузу",true),new Entry("game.resume","Игра продолжена",true),new Entry("game.auto_pause","Автопауза при выходе ключевого игрока",true),new Entry("game.auto_resume","Автопродолжение после возвращения игроков",true),new Entry("game.prepare","Раунд начался / время спрятаться",true),new Entry("game.seekers_released","Искатели выпущены",true),new Entry("game.round_result","Сообщение о победе/поражении",true),new Entry("game.round_reset","Раунд полностью сброшен",true),new Entry("game.test_timer","Сообщения тестового таймера",false));
- private static final Gson GSON=new GsonBuilder().setPrettyPrinting().create();private static final Path PATH=FabricLoader.getInstance().getConfigDir().resolve("imba_messages.json");private static final Map<String,Boolean> ENABLED=new LinkedHashMap<>();private MessageSettingsConfig(){}
- public static void load(){resetDefaults();if(!Files.exists(PATH)){save();return;}try{Data data=GSON.fromJson(Files.readString(PATH),Data.class);if(data!=null&&data.enabled!=null)for(Entry entry:CATALOG)if(data.enabled.containsKey(entry.key()))ENABLED.put(entry.key(),Boolean.TRUE.equals(data.enabled.get(entry.key())));}catch(IOException|RuntimeException e){System.err.println("[IMBA] Не удалось загрузить настройки сообщений: "+e.getMessage());}}
- public static boolean isEnabled(String key){Entry entry=entry(key);if(entry==null)return true;return ENABLED.getOrDefault(key,entry.defaultEnabled());}public static void setEnabled(String key,boolean enabled){if(entry(key)==null)return;ENABLED.put(key,enabled);save();}public static Map<String,Boolean> snapshot(){return Map.copyOf(ENABLED);}
- public static String keyForText(String text){if(text==null||text.isBlank())return null;String clean=text.replaceAll("§.","").toLowerCase(java.util.Locale.ROOT);if(clean.contains("рамк")&&clean.contains("креатив"))return "restriction.item_frame";if(clean.contains("интерактив")&&clean.contains("блок"))return "restriction.interactive_block";if(clean.contains("интерактив")&&(clean.contains("сущност")||clean.contains("вагонет")))return "restriction.interactive_entity";if(clean.contains("нельзя открывать сундук")||clean.contains("нельзя открывать сундуки"))return "restriction.chest_during_game";if(clean.contains("менять команду нельзя"))return "restriction.team_change";if(clean.contains("сначала надень")&&(clean.contains("маскиров")||clean.contains("модел")))return "mask.need_model";if(clean.contains("нельзя зафиксироваться в воздухе"))return "mask.air_forbidden";if(clean.contains("для фиксации")&&clean.contains("блок"))return "mask.air_requires_block";if(clean.contains("недостаточно места")&&clean.contains("маскиров"))return "mask.no_space";if(clean.contains("надета модель"))return "mask.model_equipped";if(clean.contains("зафиксировал"))return "mask.statue_enter";if(clean.contains("вышли из режима")&&clean.contains("фикс"))return "mask.statue_exit";if(clean.contains("ползание")&&(clean.contains("вкл")||clean.contains("выкл")))return "wall_climb.state";if(clean.contains("не умеет ползать"))return "wall_climb.unsupported";if(clean.contains("игра уже запущена"))return "game.already_running";return null;}public static boolean shouldShowText(String text){String key=keyForText(text);return key==null||isEnabled(key);}
- public static void save(){try{Files.createDirectories(PATH.getParent());Path tmp=PATH.resolveSibling(PATH.getFileName()+".tmp");Files.writeString(tmp,GSON.toJson(new Data(new LinkedHashMap<>(ENABLED))));Files.move(tmp,PATH,StandardCopyOption.REPLACE_EXISTING);}catch(IOException e){System.err.println("[IMBA] Не удалось сохранить настройки сообщений: "+e.getMessage());}}
- private static Entry entry(String key){if(key==null)return null;for(Entry entry:CATALOG)if(entry.key().equals(key))return entry;return null;}private static void resetDefaults(){ENABLED.clear();for(Entry entry:CATALOG)ENABLED.put(entry.key(),entry.defaultEnabled());}private record Data(Map<String,Boolean> enabled){}
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_messages.json");
+
+    public static final class Rule {
+        public final String id;
+        public final String label;
+        public final String example;
+        public final boolean defaultVisible;
+        private final List<String> needles;
+
+        private Rule(String id, String label, String example, boolean defaultVisible, String... needles) {
+            this.id = id;
+            this.label = label;
+            this.example = example;
+            this.defaultVisible = defaultVisible;
+            this.needles = List.of(needles);
+        }
+
+        boolean matches(String plainLower) {
+            for (String needle : needles) {
+                if (plainLower.contains(needle)) return true;
+            }
+            return false;
+        }
+    }
+
+    private static final List<Rule> RULES = List.of(
+            new Rule("restriction.item_frame", "Запрет предметов в рамках",
+                    "Класть предметы в рамки можно только в креативе", false,
+                    "класть предметы в рамки можно только в креативе"),
+            new Rule("restriction.interactive_entity", "Запрет интерактивных сущностей",
+                    "Эта интерактивная сущность запрещена настройками карты", false,
+                    "эта интерактивная сущность запрещена настройками карты"),
+            new Rule("restriction.interactive_block", "Запрет интерактивных блоков",
+                    "Этот интерактивный блок запрещён настройками карты", false,
+                    "этот интерактивный блок запрещён настройками карты"),
+            new Rule("restriction.container", "Запрет сундуков во время игры",
+                    "Во время игры участникам нельзя открывать сундуки", false,
+                    "во время игры участникам нельзя открывать сундуки"),
+            new Rule("mask.requirements", "Ошибки установки маски",
+                    "Сначала надень модель / недостаточно места / нельзя зафиксироваться", true,
+                    "сначала надень модель", "нельзя зафиксироваться", "здесь нельзя зафиксироваться",
+                    "в конечной точке маскировки недостаточно места"),
+            new Rule("mask.status", "Вход и выход из маскировки",
+                    "Вы замаскировались / Вы вышли из маскировки-статуи", false,
+                    "вы замаскировались", "вы вышли из маскировки"),
+            new Rule("seeker.penalty", "Штрафы искателя",
+                    "Минус сердце: ... / Вы потеряли все сердца", true,
+                    "минус сердце", "вы потеряли все сердца"),
+            new Rule("game.autopause", "Автопауза",
+                    "Автопауза: ключевой игрок отключился", true,
+                    "автопауза:"),
+            new Rule("game.flow", "Состояние раунда",
+                    "Игра поставлена на паузу / Игра продолжена / Раунд сброшен", true,
+                    "игра поставлена на паузу", "игра продолжена", "раунд полностью сброшен",
+                    "тестовый таймер запущен", "тестовый таймер остановлен"),
+            new Rule("admin.settings", "Сообщения настройщиков",
+                    "Настройки сохранены / сброшены / некорректное значение", true,
+                    "настройки панели", "хитбоксы стрелок", "настройка блоков", "точка сохранена",
+                    "автопозиция", "настройки локации", "не удалось сохранить маску локации",
+                    "некорректная маска локации", "для настройки", "для телепортации через камеру"),
+            new Rule("admin.photos", "Фото локаций",
+                    "Фотография сохранена / удалена / отклонена", true,
+                    "фотография отклонена", "фотография локации", "все фотографии удалены")
+    );
+
+    private static final Map<String, Boolean> VISIBLE = new LinkedHashMap<>();
+
+    private MessageSettingsConfig() {
+    }
+
+    public static void load() {
+        resetDefaults(false);
+        if (!Files.exists(PATH)) {
+            save();
+            return;
+        }
+        try {
+            Data data = GSON.fromJson(Files.readString(PATH), Data.class);
+            if (data != null && data.visible != null) {
+                for (Rule rule : RULES) {
+                    Boolean value = data.visible.get(rule.id);
+                    if (value != null) VISIBLE.put(rule.id, value);
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            System.err.println("[IMBA] Не удалось загрузить фильтр сообщений: " + e.getMessage());
+        }
+    }
+
+    public static List<Rule> rules() {
+        return RULES;
+    }
+
+    public static boolean isVisible(String id) {
+        Rule rule = rule(id);
+        return VISIBLE.getOrDefault(id, rule == null || rule.defaultVisible);
+    }
+
+    public static Map<String, Boolean> snapshot() {
+        LinkedHashMap<String, Boolean> result = new LinkedHashMap<>();
+        for (Rule rule : RULES) result.put(rule.id, isVisible(rule.id));
+        return result;
+    }
+
+    public static void setVisible(String id, boolean visible) {
+        if (rule(id) == null) return;
+        VISIBLE.put(id, visible);
+        save();
+    }
+
+    public static boolean shouldShow(Text message) {
+        if (message == null) return true;
+        String plain = message.getString().toLowerCase(Locale.ROOT);
+        for (Rule rule : RULES) {
+            if (rule.matches(plain)) return isVisible(rule.id);
+        }
+        return true;
+    }
+
+    public static void resetDefaults() {
+        resetDefaults(true);
+    }
+
+    private static void resetDefaults(boolean save) {
+        VISIBLE.clear();
+        for (Rule rule : RULES) VISIBLE.put(rule.id, rule.defaultVisible);
+        if (save) save();
+    }
+
+    private static Rule rule(String id) {
+        if (id == null) return null;
+        for (Rule rule : RULES) if (rule.id.equals(id)) return rule;
+        return null;
+    }
+
+    private static void save() {
+        try {
+            Files.createDirectories(PATH.getParent());
+            Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
+            Files.writeString(tmp, GSON.toJson(new Data(snapshot())));
+            Files.move(tmp, PATH, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            System.err.println("[IMBA] Не удалось сохранить фильтр сообщений: " + e.getMessage());
+        }
+    }
+
+    private static final class Data {
+        Map<String, Boolean> visible = new LinkedHashMap<>();
+
+        Data() {
+        }
+
+        Data(Map<String, Boolean> visible) {
+            this.visible = visible;
+        }
+    }
 }
