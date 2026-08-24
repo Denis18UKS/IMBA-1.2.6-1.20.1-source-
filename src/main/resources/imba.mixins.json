@@ -23,7 +23,9 @@
     "GameManagerExtensionMixin",
     "PortalRoundIconMixin",
     "HiderDamageMixin",
-    "HideButtonSafetyMixin"
+    "HideButtonSafetyMixin",
+    "OverlayBarrierCollisionMixin",
+    "ServerPlayerMessageFilterMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -43,7 +45,8 @@
     "client.PlayerEntityClientMixin",
     "client.MaskShadowMixin",
     "client.ClientDoorCollisionMixin",
-    "client.ClientWallClimbingMixin"
+    "client.ClientWallClimbingMixin",
+    "client.AdvancementToastMixin"
   ],
-  "injectors": { "defaultRequire": 1 }
+  "injectors": {"defaultRequire": 1}
 }
