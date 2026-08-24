@@ -13,11 +13,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GameAutoResumeMixin {
     @Shadow(remap = false) private static boolean autoPaused;
 
-    @Inject(method = "tick", at = @At("TAIL"), remap = false)
+    /**
+     * Run before GameManager.tick can hit its paused early-return. The previous
+     * TAIL injection was unreachable while paused, which made auto-resume a
+     * permanent no-op exactly when it was needed. resumeGame performs the
+     * authoritative participantsAvailable(server) check and clears autoPaused
+     * only after the required hider/seeker set is really back online.
+     */
+    @Inject(method = "tick", at = @At("HEAD"), remap = false)
     private static void imba$resumeWhenRequiredParticipantsReturn(MinecraftServer server, CallbackInfo ci) {
         if (autoPaused && GameManager.isPaused()) {
-            // resumeGame already checks participantsAvailable(server), so this is
-            // a no-op until the current hider and at least one active seeker are online.
             GameManager.resumeGame(server);
         }
     }
