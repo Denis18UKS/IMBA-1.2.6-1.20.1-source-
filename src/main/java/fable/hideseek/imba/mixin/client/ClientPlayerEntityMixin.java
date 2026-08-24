@@ -7,7 +7,6 @@ import net.minecraft.client.input.Input;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,7 +19,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ClientPlayerEntity.class)
 public abstract class ClientPlayerEntityMixin extends PlayerEntity {
     @Shadow public Input input;
-    @Unique private boolean imba$wasStatue;
 
     public ClientPlayerEntityMixin(World world, BlockPos pos, float yaw, GameProfile gameProfile) {
         super(world, pos, yaw, gameProfile);
@@ -40,14 +38,8 @@ public abstract class ClientPlayerEntityMixin extends PlayerEntity {
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
-    private void handleStatueTransition(CallbackInfo ci) {
-        boolean statue = ClientMaskData.isStatue(getUuid());
-        if (statue && !imba$wasStatue) {
-            Vec3d anchor = ClientMaskData.getStatueAnchor(getUuid());
-            if (anchor != null) ClientStatueLock.enter(this, anchor.x, anchor.y, anchor.z);
-        }
-        imba$wasStatue = statue;
-        if (!statue) return;
+    private void keepStatueLocked(CallbackInfo ci) {
+        if (!ClientMaskData.isStatue(getUuid())) return;
         clearMovementInput();
         setSneaking(false);
         ClientStatueLock.apply(this);
