@@ -1,35 +1,41 @@
 package fable.hideseek.imba.mixin.client;
 
-import fable.hideseek.imba.client.ClientCameraTransition;
 import fable.hideseek.imba.client.ClientMaskData;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.BlockView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Prevents first-person camera eye-height interpolation from producing a visible
+ * vertical twitch when a masked local player enters statue/fixation mode.
+ *
+ * The entity position, mask anchor, collision and third-person camera are not
+ * modified here. We only collapse Camera's previous/current eye-height values to
+ * the same already-calculated value while the local player is fixed in first
+ * person, so vanilla has nothing to interpolate between on subsequent frames.
+ */
 @Mixin(Camera.class)
 public abstract class CameraTransitionMixin {
-    @Shadow public abstract Vec3d getPos();
-    @Shadow protected abstract void setPos(double x, double y, double z);
+    @Shadow private float cameraY;
+    @Shadow private float lastCameraY;
+    @Shadow private Entity focusedEntity;
+    @Shadow private boolean thirdPerson;
 
-    @Inject(method = "update", at = @At("RETURN"))
-    private void imba$smoothFixationCamera(BlockView area, Entity focusedEntity,
-            boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+    @Inject(method = "updateEyeHeight", at = @At("RETURN"))
+    private void imba$stabilizeFirstPersonStatueEyeHeight(CallbackInfo ci) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || focusedEntity != client.player
+        if (client.player == null || thirdPerson || focusedEntity != client.player
                 || !ClientMaskData.isStatue(client.player.getUuid())) {
-            ClientCameraTransition.clear();
             return;
         }
-        Vec3d offset = ClientCameraTransition.currentOffset();
-        if (offset.lengthSquared() < 1.0E-12D) return;
-        Vec3d pos = getPos();
-        setPos(pos.x + offset.x, pos.y + offset.y, pos.z + offset.z);
+
+        float eyeHeight = focusedEntity.getEyeHeight(focusedEntity.getPose());
+        cameraY = eyeHeight;
+        lastCameraY = eyeHeight;
     }
 }
