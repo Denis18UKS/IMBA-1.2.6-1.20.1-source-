@@ -1,0 +1,78 @@
++import java.util.List;
++import java.util.Locale;
++import java.util.UUID;
++
++/**
++ * In-world FifthScript workstation. In addition to the editor it keeps a live library of spawned Director NPCs.
++ * The library is refreshed from the server while this screen is open, so newly spawned NPCs appear automatically.
++ */
+ public class ScriptComputerScreen extends HorrorScreen {
+-    private final BlockPos pos;private final String initialName,initialScript;private TextFieldWidget name;private EditBoxWidget editor;private String status="";
+-    public ScriptComputerScreen(BlockPos pos,String name,String script){super(Text.literal("ПЯТЫЙ / FIFTHSCRIPT COMPUTER"));this.pos=pos;initialName=name;initialScript=script;}
+-    @Override protected void init(){
++    public record NpcInfo(UUID uuid, String id, String name, boolean aiEnabled, String aiScript, int pathPoints, String world) {}
++    private record CodeTemplate(String name, String description, String code) {}
++
++    private static final CodeTemplate[] TEMPLATES = {
++            new CodeTemplate("Запустить интеллект", "Включает код NPC; до этого он остаётся статуей.", "npc(\"%NPC%\")->startAi();"),
++            new CodeTemplate("Остановить интеллект", "Останавливает ИИ и текущий маршрут.", "npc(\"%NPC%\")->stopAi();"),
++            new CodeTemplate("Пройти маршрут один раз", "Идёт по точкам маршрутного инструмента один раз.", "npc(\"%NPC%\")->startAi();\nnpc(\"%NPC%\")->followPath(false, 0.25);"),
++            new CodeTemplate("Патрулировать маршрут", "Зацикливает маршрут, заданный маршрутным инструментом.", "npc(\"%NPC%\")->startAi();\nnpc(\"%NPC%\")->followPath(true, 0.25);"),
++            new CodeTemplate("Идти к координатам", "Одно движение к указанной точке мира.", "npc(\"%NPC%\")->moveTo(100, 64, -30, 0.25);"),
++            new CodeTemplate("Смотреть на игрока", "На каждом тике ИИ поворачивается к ближайшему игроку.", "onNpcTick() {\n    npc(\"self\")->lookAtNearestPlayer(12);\n}"),
++            new CodeTemplate("Маршрут + взгляд", "Готовая основа интеллекта патрульного NPC.", "onNpcTick() {\n    npc(\"self\")->followPath(true, 0.25);\n    npc(\"self\")->lookAtNearestPlayer(10);\n}"),
++            new CodeTemplate("Реплика", "Отправляет игрокам реплику от имени NPC.", "npc(\"%NPC%\")->say(\"Я что-то слышал...\");"),
++            new CodeTemplate("Проиграть анимацию", "Запускает выбранную GeckoLib-анимацию.", "npc(\"%NPC%\")->animation(\"animation.npc.walk\");"),
++            new CodeTemplate("Назначить этот AI-файл", "Привязывает NPC к текущему .fifth.php и запускает его.", "npc(\"%NPC%\")->script(\"%SCRIPT%\");\nnpc(\"%NPC%\")->startAi();")
++    };
++
++    private final BlockPos pos;
++    private final String initialName;
++    private final String initialScript;
++    private TextFieldWidget name;
++    private TextFieldWidget npcSearch;
++    private EditBoxWidget editor;
++    private String status = "";
++    private List<NpcInfo> npcLibrary = List.of();
++    private String selectedNpc = "";
++    private int npcPage;
++    private int templateIndex;
++    private int narrowView; // 0 code, 1 NPC, 2 templates
++    private int refreshTicks;
++    private boolean rebuilding;
++
++    public ScriptComputerScreen(BlockPos pos, String name, String script) {
++        super(Text.literal("ПЯТЫЙ / FIFTHSCRIPT COMPUTER"));
++        this.pos = pos;
++        this.initialName = name;
++        this.initialScript = script;
++    }
++
++    @Override
++    protected void init() {
++        String keepName = name == null ? initialName : name.getText();
++        String keepScript = editor == null ? initialScript : editor.getText();
++        String keepSearch = npcSearch == null ? "" : npcSearch.getText();
+         beginHorrorInit();
+-        int margin=Math.max(10,Math.min(20,width/30)),top=safeTop();
+-        int nameW=Math.max(120,Math.min(260,width/3));
+-        name=horrorField(margin,top,nameW,20,initialName,128);
+-        int editorY=top+28,buttonH=22,bottom=safeBottom()+buttonH+8;
+-        editor=new EditBoxWidget(textRenderer,margin,editorY,width-margin*2,Math.max(62,height-editorY-bottom),Text.empty(),Text.literal("FifthScript"));
+-        editor.setMaxLength(1_000_000);editor.setText(initialScript);frameWidget(editor);addDrawableChild(editor);
+-        int by=height-safeBottom()-buttonH,gap=5,totalW=width-margin*2,each=Math.max(52,(totalW-gap*3)/4);
+-        int x=margin;
+-        addDrawableChild(HorrorButton.builder(Text.literal("Проверить"),b->validate()).dimensions(x,by,each,buttonH).build());x+=each+gap;
+-        addDrawableChild(HorrorButton.builder(Text.literal("Сохранить"),b->save()).dimensions(x,by,each,buttonH).build());x+=each+gap;
+-        addDrawableChild(HorrorButton.builder(Text.literal("Запустить"),b->{save();PacketByteBuf out=PacketByteBufs.create();out.writeString(name.getText(),128);ClientPlayNetworking.send(FifthNetworking.RUN_COMPUTER,out);status="Запущено";}).dimensions(x,by,each,buttonH).build());x+=each+gap;
+-        addDrawableChild(HorrorButton.builder(Text.literal("Закрыть"),b->close()).dimensions(x,by,totalW-(x-margin),buttonH).build());
+-    }
+-    private void validate(){String s=editor.getText();int depth=0;boolean bad=false;for(char c:s.toCharArray()){if(c=='{')depth++;if(c=='}')depth--;if(depth<0)bad=true;}status=!bad&&depth==0?"Синтаксис блоков: OK":"Ошибка: несбалансированные { }";}
+-    private void save(){PacketByteBuf out=PacketByteBufs.create();out.writeBlockPos(pos);out.writeString(name.getText(),128);out.writeString(editor.getText(),1_000_000);ClientPlayNetworking.send(FifthNetworking.SAVE_COMPUTER,out);status="Сохранено";}
+-    @Override public void render(DrawContext c,int mx,int my,float d){horrorBackground(c);int m=Math.max(10,Math.min(20,width/30)),top=safeTop();c.drawTextWithShadow(textRenderer,"Файл .fifth.php",m,top-10,0xFFB09F97);if(width>480)c.drawTextWithShadow(textRenderer,"Sandbox API: npc(), scene(), layer(), setFlag(), trigger()",m+Math.max(140,Math.min(280,width/3)),top+6,0xFF897E79);if(!status.isBlank())c.drawTextWithShadow(textRenderer,status,m,height-safeBottom()-36,status.startsWith("Ошибка")?0xFFFF8585:0xFF9BC99B);super.render(c,mx,my,d);}
++
++        int margin = Math.max(8, Math.min(16, width / 42));
++        int top = safeTop();
++        boolean wide = width >= 700 && height >= 285;
++
++        if (wide) {

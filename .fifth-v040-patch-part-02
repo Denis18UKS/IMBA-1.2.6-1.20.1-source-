@@ -1,0 +1,110 @@
++            int rightW = Math.max(218, Math.min(300, width / 3));
++            int leftW = Math.max(320, width - margin * 3 - rightW);
++            int leftX = margin;
++            int rightX = leftX + leftW + margin;
++            buildCodePanel(leftX, top, leftW, keepName, keepScript, false);
++            buildNpcPanel(rightX, top, rightW, keepSearch, true);
++        } else {
++            int w = Math.max(220, width - margin * 2);
++            int x = margin;
++            int tabGap = 4;
++            int tabW = Math.max(58, (w - tabGap * 2) / 3);
++            addDrawableChild(HorrorButton.builder(Text.literal(narrowView == 0 ? "[ КОД ]" : "КОД"), b -> switchNarrow(0)).dimensions(x, top, tabW, 20).build());
++            addDrawableChild(HorrorButton.builder(Text.literal(narrowView == 1 ? "[ NPC ]" : "NPC"), b -> switchNarrow(1)).dimensions(x + tabW + tabGap, top, tabW, 20).build());
++            addDrawableChild(HorrorButton.builder(Text.literal(narrowView == 2 ? "[ ШАБЛОНЫ ]" : "ШАБЛОНЫ"), b -> switchNarrow(2)).dimensions(x + (tabW + tabGap) * 2, top, w - (tabW + tabGap) * 2, 20).build());
++            int bodyTop = top + 27;
++            if (narrowView == 0) buildCodePanel(x, bodyTop, w, keepName, keepScript, true);
++            else if (narrowView == 1) buildNpcPanel(x, bodyTop, w, keepSearch, false);
++            else buildTemplatePanel(x, bodyTop, w);
++        }
++
++        if (!rebuilding) requestNpcLibrary();
++    }
++
++    private void buildCodePanel(int x, int top, int w, String keepName, String keepScript, boolean narrow) {
++        int buttonH = 21;
++        int bottomButtons = 2 * buttonH + 8;
++        name = horrorField(x, top, Math.max(120, Math.min(narrow ? w : 250, w)), 20, keepName, 128);
++        int editorY = top + 27;
++        int bottom = height - safeBottom() - bottomButtons;
++        int editorH = Math.max(58, bottom - editorY - 5);
++        editor = new EditBoxWidget(textRenderer, x, editorY, w, editorH, Text.empty(), Text.literal("FifthScript"));
++        editor.setMaxLength(1_000_000);
++        editor.setText(keepScript == null ? "" : keepScript);
++        frameWidget(editor);
++        addDrawableChild(editor);
++
++        int gap = 5;
++        int by = height - safeBottom() - buttonH * 2 - gap;
++        int half = Math.max(70, (w - gap) / 2);
++        addDrawableChild(HorrorButton.builder(Text.literal("Проверить код"), b -> validateScript()).dimensions(x, by, half, buttonH).build());
++        addDrawableChild(HorrorButton.builder(Text.literal("Сохранить"), b -> save()).dimensions(x + half + gap, by, w - half - gap, buttonH).build());
++        addDrawableChild(HorrorButton.builder(Text.literal("▶ Запустить"), b -> run()).dimensions(x, by + buttonH + gap, half, buttonH).build());
++        addDrawableChild(HorrorButton.builder(Text.literal("Закрыть"), b -> close()).dimensions(x + half + gap, by + buttonH + gap, w - half - gap, buttonH).build());
++    }
++
++    private void buildNpcPanel(int x, int top, int w, String searchText, boolean includeTemplateControls) {
++        npcSearch = horrorField(x, top, w, 20, searchText, 100);
++        npcSearch.setPlaceholder(Text.literal("Поиск NPC..."));
++        npcSearch.setChangedListener(v -> { npcPage = 0; rebuildPreserving(); });
++
++        List<NpcInfo> filtered = filteredNpcs(searchText);
++        int bottomReserve = includeTemplateControls ? 96 : 52;
++        int available = Math.max(46, height - safeBottom() - (top + 27) - bottomReserve);
++        int entryH = 25, gap = 4;
++        int per = Math.max(1, available / (entryH + gap));
++        int pages = Math.max(1, (filtered.size() + per - 1) / per);
++        npcPage = Math.max(0, Math.min(npcPage, pages - 1));
++        int from = npcPage * per, to = Math.min(filtered.size(), from + per);
++        int y = top + 27;
++        for (int i = from; i < to; i++) {
++            NpcInfo info = filtered.get(i);
++            String marker = info.aiEnabled ? "§a●§r " : "§8○§r ";
++            String selected = info.id.equals(selectedNpc) ? "§c› §r" : "";
++            String label = selected + marker + info.name + " §8[" + info.id + "] §7• " + info.pathPoints + " т.";
++            addDrawableChild(HorrorButton.builder(Text.literal(label), b -> {
++                selectedNpc = info.id;
++                status = "Выбран NPC: " + info.id;
++                rebuildPreserving();
++            }).dimensions(x, y, w, entryH).compact().build());
++            y += entryH + gap;
++        }
++
++        int navY = height - safeBottom() - (includeTemplateControls ? 88 : 23);
++        int side = 38;
++        addDrawableChild(HorrorButton.builder(Text.literal("‹"), b -> { if (npcPage > 0) { npcPage--; rebuildPreserving(); } }).dimensions(x, navY, side, 21).build());
++        addDrawableChild(HorrorButton.builder(Text.literal((npcPage + 1) + "/" + pages + "   Обновить"), b -> requestNpcLibrary()).dimensions(x + side + 5, navY, w - side * 2 - 10, 21).build());
++        addDrawableChild(HorrorButton.builder(Text.literal("›"), b -> { if (npcPage + 1 < pages) { npcPage++; rebuildPreserving(); } }).dimensions(x + w - side, navY, side, 21).build());
++
++        if (includeTemplateControls) {
++            int ty = navY + 27;
++            addDrawableChild(HorrorButton.builder(Text.literal("Шаблон: " + TEMPLATES[templateIndex].name), b -> {
++                templateIndex = (templateIndex + 1) % TEMPLATES.length;
++                rebuildPreserving();
++            }).dimensions(x, ty, w, 21).compact().build());
++            addDrawableChild(HorrorButton.builder(Text.literal("Вставить шаблон в код"), b -> insertTemplate()).dimensions(x, ty + 27, w, 21).build());
++        }
++    }
++
++    private void buildTemplatePanel(int x, int top, int w) {
++        int h = 24, gap = 5;
++        int max = Math.max(1, (height - safeBottom() - top - 58) / (h + gap));
++        int start = Math.max(0, Math.min(templateIndex, Math.max(0, TEMPLATES.length - max)));
++        int end = Math.min(TEMPLATES.length, start + max);
++        int y = top;
++        for (int i = start; i < end; i++) {
++            int idx = i;
++            addDrawableChild(HorrorButton.builder(Text.literal((i == templateIndex ? "› " : "") + TEMPLATES[i].name), b -> {
++                templateIndex = idx;
++                status = TEMPLATES[idx].description;
++                rebuildPreserving();
++            }).dimensions(x, y, w, h).compact().build());
++            y += h + gap;
++        }
++        int by = height - safeBottom() - 23;
++        addDrawableChild(HorrorButton.builder(Text.literal("Вставить выбранный шаблон"), b -> insertTemplate()).dimensions(x, by, w, 22).build());
++    }
++
++    private List<NpcInfo> filteredNpcs(String query) {
++        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
++        List<NpcInfo> out = new ArrayList<>();

@@ -1,0 +1,94 @@
+ import ru.fifth.horror.FifthMod;
+ import ru.fifth.horror.block.ScriptComputerBlockEntity;
+ import ru.fifth.horror.cutscene.CutsceneDefinition;
+@@ -18,6 +19,10 @@ import ru.fifth.horror.entity.DirectorNpcEntity;
+ import ru.fifth.horror.script.FifthScriptEngine;
+ import ru.fifth.horror.structure.StructureLayerManager;
+ 
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++
+ public final class FifthNetworking {
+     private static final Gson GSON = new Gson();
+     public static final Identifier OPEN_COMPUTER = FifthMod.id("open_computer");
+@@ -31,6 +36,8 @@ public final class FifthNetworking {
+     public static final Identifier PLAY_CUTSCENE = FifthMod.id("play_cutscene");
+     public static final Identifier CUTSCENE_PAYLOAD = FifthMod.id("cutscene_payload");
+     public static final Identifier CUTSCENE_END_TELEPORT = FifthMod.id("cutscene_end_teleport");
++    public static final Identifier REQUEST_NPC_LIBRARY = FifthMod.id("request_npc_library");
++    public static final Identifier NPC_LIBRARY_PAYLOAD = FifthMod.id("npc_library_payload");
+ 
+     private FifthNetworking() {}
+ 
+@@ -92,6 +99,34 @@ public final class FifthNetworking {
+                 player.teleport(player.getServerWorld(), end.x, end.y - eyeOffset, end.z, end.yaw, end.pitch);
+             });
+         });
++        ServerPlayNetworking.registerGlobalReceiver(REQUEST_NPC_LIBRARY, (server, player, handler, buf, responseSender) ->
++                server.execute(() -> sendNpcLibrary(player)));
++    }
++
++    private static void sendNpcLibrary(ServerPlayerEntity player) {
++        if (!player.hasPermissionLevel(2)) return;
++        record Row(DirectorNpcEntity npc, String world) {}
++        List<Row> rows = new ArrayList<>();
++        Box all = new Box(-30_000_000, -2048, -30_000_000, 30_000_000, 4096, 30_000_000);
++        var server = player.getServerWorld().getServer();
++        for (var world : server.getWorlds()) {
++            String worldId = world.getRegistryKey().getValue().toString();
++            for (DirectorNpcEntity npc : world.getEntitiesByClass(DirectorNpcEntity.class, all, n -> !n.isRemoved())) rows.add(new Row(npc, worldId));
++        }
++        rows.sort(Comparator.comparing((Row r) -> r.npc().getNpcId(), String.CASE_INSENSITIVE_ORDER));
++        PacketByteBuf out = PacketByteBufs.create();
++        out.writeVarInt(Math.min(rows.size(), 2048));
++        for (int i = 0; i < rows.size() && i < 2048; i++) {
++            DirectorNpcEntity npc = rows.get(i).npc();
++            out.writeUuid(npc.getUuid());
++            out.writeString(npc.getNpcId(), 128);
++            out.writeString(npc.getCustomName() == null ? npc.getNpcId() : npc.getCustomName().getString(), 256);
++            out.writeBoolean(npc.isAiEnabled());
++            out.writeString(npc.getAiScript(), 512);
++            out.writeVarInt(npc.getPathPoints().size());
++            out.writeString(rows.get(i).world(), 256);
++        }
++        ServerPlayNetworking.send(player, NPC_LIBRARY_PAYLOAD, out);
+     }
+ 
+     private static void giveNpcEgg(ServerPlayerEntity player, String json) {
+diff --git a/src/main/resources/assets/minecraft/textures/gui/options_background.png b/src/main/resources/assets/minecraft/textures/gui/options_background.png
+new file mode 100644
+index 0000000000000000000000000000000000000000..87827818ccaa5420abae26c2fe904af4178060b8
+GIT binary patch
+literal 360
+zcmV-u0hj)XP)<h;3K|Lk000e1NJLTq001BW001Be1^@s6b9#F80003mNkl<Zc%1E)
+zOK!z52t_Yo58A%Bi;lXIuBQ8!{Go#imwaD715a!zQbMjzFa`(u{`~qu$3c(xhXR1A
+zHsh=N7~^5>D@Lfbf`~vwe;yGbr8Ie7yEo02?kIy*wRx3uMkxg%f)K)FLMa8c)}|#Q
+zFf&91w-_e!P%kp5h^#tLO2I9L89dMn=O6Nu=g=#Ru(ql-8xd_rz;D4>20cHX|8eRt
+zf`!OuwZFFPIp@RLJq91$g1scX#ps=c-ODh{4-r*Gj1kP-L;yCkoro3((HTalwN6A<
+zDt<-&osE>z!ghtR*a8u0p8D|Z9mTg8-oVVrIU|GsADJ^%aGGKJW%X*_#~7iit%fbL
+z{bX;u${<yJL&q^1lF^WK{}+sgWHcn*ldyXkj)tUrL-Gsoe7ui*RE;SB0000<MNUMn
+GLSTZKpPkMC
+
+literal 0
+HcmV?d00001
+
+diff --git a/src/main/resources/fifth.mixins.json b/src/main/resources/fifth.mixins.json
+index 5bd1569..11c985b 100644
+--- a/src/main/resources/fifth.mixins.json
++++ b/src/main/resources/fifth.mixins.json
+@@ -8,7 +8,13 @@
+     "TitleScreenMixin",
+     "CameraMixin",
+     "InGameHudMixin",
+-    "GameRendererMixin"
++    "GameRendererMixin",
++    "ScreenThemeMixin",
++    "ClickableWidgetThemeMixin",
++    "TextFieldThemeMixin",
++    "EntryListThemeMixin",
++    "SliderThemeMixin",
++    "SpecialWidgetThemeMixin"
+   ],
+   "injectors": {
+     "defaultRequire": 1
