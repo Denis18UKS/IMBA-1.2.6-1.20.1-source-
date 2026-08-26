@@ -13,8 +13,6 @@ public final class ClientStatueLock {
     public static boolean enter(PlayerEntity player, double anchorX, double anchorY, double anchorZ) {
         if (player == null) return false;
         Vec3d anchor = new Vec3d(anchorX, anchorY, anchorZ);
-        boolean local = MinecraftClient.getInstance().player == player;
-        Vec3d oldPos = player.getPos();
 
         player.setNoGravity(true);
         player.setVelocity(Vec3d.ZERO);
@@ -32,8 +30,12 @@ public final class ClientStatueLock {
             clientPlayer.setSprinting(false);
         }
 
-        if (oldPos.squaredDistanceTo(anchor) > 1.0E-8D) {
-            if (local) ClientCameraTransition.begin(oldPos, anchor);
+        // Geometry/pose changes are allowed to settle BEFORE the authoritative
+        // position is applied. calculateDimensions() can adjust an entity when its
+        // box changes, so doing it after setPosition(anchor) creates a second snap.
+        player.calculateDimensions();
+
+        if (player.getPos().squaredDistanceTo(anchor) > 1.0E-8D) {
             player.setPosition(anchorX, anchorY, anchorZ);
         }
 
@@ -43,7 +45,6 @@ public final class ClientStatueLock {
         player.lastRenderX = anchorX;
         player.lastRenderY = anchorY;
         player.lastRenderZ = anchorZ;
-        player.calculateDimensions();
         return true;
     }
 
