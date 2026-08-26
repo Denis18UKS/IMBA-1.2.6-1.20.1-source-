@@ -1,6 +1,7 @@
 package fable.hideseek.imba.net;
 
 import fable.hideseek.imba.client.ClientMaskData;
+import fable.hideseek.imba.client.ClientStatueLock;
 import fable.hideseek.imba.client.PanelData;
 import fable.hideseek.imba.mask.MaskResetGeometry;
 import fable.hideseek.imba.mask.MaskType;
@@ -79,7 +80,7 @@ public final class MaskClientNetworking {
                         ClientMaskData.reset(uuid);
                         if (client.world != null) {
                             var maskedPlayer = client.world.getPlayerByUuid(uuid);
-                            fable.hideseek.imba.client.ClientStatueLock.release(maskedPlayer);
+                            ClientStatueLock.release(maskedPlayer);
                             restoreStandingAfterMaskReset(maskedPlayer);
                             RESET_RECOVERY.put(uuid, RESET_RECOVERY_PASSES);
                         }
@@ -102,24 +103,33 @@ public final class MaskClientNetworking {
                     double anchorZ = buf.readDouble();
                     client.execute(() -> {
                         ClientMaskData.setStatue(uuid, statue, anchorX, anchorY, anchorZ);
-                        if (client.world != null) {
-                            var player = client.world.getPlayerByUuid(uuid);
-                            if (statue) {
-                                fable.hideseek.imba.client.ClientStatueLock.apply(player);
+                        if (client.world == null) return;
+
+                        var player = client.world.getPlayerByUuid(uuid);
+                        if (player == null) return;
+
+                        if (statue) {
+                            if (player == client.player) {
+                                // The server already sent the authoritative anchor in STATUE_SYNC.
+                                // Apply it immediately on the local client instead of waiting for
+                                // ClientPlayerEntity.tick(), which otherwise leaves a short frame
+                                // where server and client disagree about the player's position.
+                                ClientStatueLock.enter(player, anchorX, anchorY, anchorZ);
                             } else {
-                                fable.hideseek.imba.client.ClientStatueLock.release(player);
-                                if (!ClientMaskData.hasMask(uuid)) {
-                                    restoreStandingAfterMaskReset(player);
-                                } else if (player != null) {
-                                    player.calculateDimensions();
-                                }
+                                ClientStatueLock.apply(player);
+                                player.calculateDimensions();
                             }
-                            if (statue && player != null) {
+                        } else {
+                            ClientStatueLock.release(player);
+                            if (!ClientMaskData.hasMask(uuid)) {
+                                restoreStandingAfterMaskReset(player);
+                            } else {
                                 player.calculateDimensions();
                             }
                         }
                     });
                 });
+
         ClientPlayNetworking.registerGlobalReceiver(MaskNetworking.GAME_SETTINGS_PACKET,
                 (client, handler, buf, responseSender) -> {
                     int seconds = buf.readVarInt();
@@ -150,6 +160,7 @@ public final class MaskClientNetworking {
                         PanelData.potionOffsetZ = offsetZ;
                     });
                 });
+
         ClientPlayNetworking.registerGlobalReceiver(MaskNetworking.GAME_STATE_PACKET,
                 (client, handler, buf, responseSender) -> {
                     boolean paused = buf.readBoolean();
@@ -159,6 +170,7 @@ public final class MaskClientNetworking {
                         fable.hideseek.imba.client.ClientGameState.prepareLocked = prepareLocked;
                     });
                 });
+
         ClientPlayNetworking.registerGlobalReceiver(MaskNetworking.LOCATION_PHOTO_SYNC_PACKET,
                 (client, handler, buf, responseSender) -> {
                     int location = buf.readVarInt();
