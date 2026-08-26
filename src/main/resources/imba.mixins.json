@@ -36,6 +36,7 @@
     "client.PlayerRendererMixin",
     "client.FirstPersonRendererMixin",
     "client.CameraTransitionMixin",
+    "client.GameRendererFixationMixin",
     "client.ClientPlayerEntityMixin",
     "client.ClientPlayerInputMixin",
     "client.ClientEntitySneakMixin",
