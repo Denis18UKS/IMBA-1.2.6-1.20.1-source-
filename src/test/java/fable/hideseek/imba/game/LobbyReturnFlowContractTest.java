@@ -34,7 +34,7 @@ class LobbyReturnFlowContractTest {
 
         assertTrue(returnMixin.contains("method = \"beginReturn\"")
                         && returnMixin.contains("at = @At(\"HEAD\")")
-                        && returnMixin.contains("MaskNetworking.broadcastReturnBlackout(server, true);"),
+                        && returnMixin.contains("LobbyReturnNetworking.broadcastReturnBlackout(server, true);"),
                 "Return phase must enable full-screen blackout before the lobby transition");
 
         assertTrue(finishReturn.contains("teleportToLobby(player);"),
@@ -44,15 +44,17 @@ class LobbyReturnFlowContractTest {
                 "spreadplayers must run only after finishReturn has completed the lobby teleports");
 
         int spread = returnMixin.indexOf("spreadplayers -131.49 148.72 2 5 under -29 false @a");
-        int blackoutOff = returnMixin.indexOf("MaskNetworking.broadcastReturnBlackout(server, false);");
+        int blackoutOff = returnMixin.indexOf("LobbyReturnNetworking.broadcastReturnBlackout(server, false);");
         assertTrue(spread >= 0, "Lobby return must execute the configured spreadplayers command");
         assertTrue(blackoutOff > spread, "blackout must be removed only after spreadplayers finishes");
     }
 
     @Test
     void blackoutHasServerPacketAndClientReceiver() throws Exception {
-        String serverNetworking = read("src/main/java/fable/hideseek/imba/net/MaskNetworking.java");
-        String clientNetworking = read("src/main/java/fable/hideseek/imba/net/MaskClientNetworking.java");
+        String serverNetworking = readOrEmpty(
+                "src/main/java/fable/hideseek/imba/net/LobbyReturnNetworking.java");
+        String clientNetworking = readOrEmpty(
+                "src/main/java/fable/hideseek/imba/net/LobbyReturnClientNetworking.java");
 
         assertTrue(serverNetworking.contains("return_blackout"),
                 "Server networking must define a dedicated return blackout packet");
