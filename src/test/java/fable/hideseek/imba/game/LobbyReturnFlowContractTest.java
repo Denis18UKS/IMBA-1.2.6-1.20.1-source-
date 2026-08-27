@@ -23,19 +23,24 @@ class LobbyReturnFlowContractTest {
 
     @Test
     void returnBlackoutStartsBeforeLobbyTransitionAndEndsAfterSpread() throws Exception {
-        String source = read("src/main/java/fable/hideseek/imba/game/GameManager.java");
-        String beginReturn = methodBody(source, "private static void beginReturn");
-        String finishReturn = methodBody(source, "private static void finishReturn");
+        String manager = read("src/main/java/fable/hideseek/imba/game/GameManager.java");
+        String finishReturn = methodBody(manager, "private static void finishReturn");
+        String returnMixin = read("src/main/java/fable/hideseek/imba/mixin/LobbyReturnMixin.java");
 
-        assertTrue(beginReturn.contains("MaskNetworking.broadcastReturnBlackout(server, true);"),
-                "Return phase must enable the full-screen blackout before lobby transition");
+        assertTrue(returnMixin.contains("method = \"beginReturn\"")
+                        && returnMixin.contains("at = @At(\"HEAD\")")
+                        && returnMixin.contains("MaskNetworking.broadcastReturnBlackout(server, true);"),
+                "Return phase must enable full-screen blackout before the lobby transition");
 
-        int teleport = finishReturn.indexOf("teleportToLobby(player);");
-        int spread = finishReturn.indexOf("spreadplayers -131.49 148.72 2 5 under -29 false @a");
-        int blackoutOff = finishReturn.indexOf("MaskNetworking.broadcastReturnBlackout(server, false);");
+        assertTrue(finishReturn.contains("teleportToLobby(player);"),
+                "finishReturn must perform the normal lobby teleport");
+        assertTrue(returnMixin.contains("method = \"finishReturn\"")
+                        && returnMixin.contains("at = @At(\"TAIL\")"),
+                "spreadplayers must run only after finishReturn has completed the lobby teleports");
 
-        assertTrue(teleport >= 0, "finishReturn must teleport players to the lobby first");
-        assertTrue(spread > teleport, "spreadplayers must run after the lobby teleport");
+        int spread = returnMixin.indexOf("spreadplayers -131.49 148.72 2 5 under -29 false @a");
+        int blackoutOff = returnMixin.indexOf("MaskNetworking.broadcastReturnBlackout(server, false);");
+        assertTrue(spread >= 0, "Lobby return must execute the configured spreadplayers command");
         assertTrue(blackoutOff > spread, "blackout must be removed only after spreadplayers finishes");
     }
 
