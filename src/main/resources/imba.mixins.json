@@ -21,6 +21,7 @@
     "TntMinecartEntityMixin",
     "MaskServiceGuardMixin",
     "GameManagerExtensionMixin",
+    "LobbyReturnMixin",
     "PortalRoundIconMixin",
     "HiderDamageMixin",
     "HideButtonSafetyMixin",
