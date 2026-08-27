@@ -4,6 +4,8 @@ import net.minecraft.client.MinecraftClient;
 
 public final class ClientGameState {
     public static boolean paused, prepareLocked;
+    /** Full-screen blackout while the server returns and separates players in the lobby. */
+    public static boolean returnBlackout;
     /** Suppresses the actual configured sneak input until the user releases/toggles it off. */
     public static boolean suppressSneakUntilRelease;
 
