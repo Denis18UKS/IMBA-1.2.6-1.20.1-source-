@@ -14,6 +14,11 @@ class LobbyReturnFlowContractTest {
         return Files.readString(Path.of(relativePath));
     }
 
+    private static String readOrEmpty(String relativePath) throws IOException {
+        Path path = Path.of(relativePath);
+        return Files.exists(path) ? Files.readString(path) : "";
+    }
+
     private static String methodBody(String source, String signature) {
         int start = source.indexOf(signature);
         assertTrue(start >= 0, "Method not found: " + signature);
@@ -25,7 +30,7 @@ class LobbyReturnFlowContractTest {
     void returnBlackoutStartsBeforeLobbyTransitionAndEndsAfterSpread() throws Exception {
         String manager = read("src/main/java/fable/hideseek/imba/game/GameManager.java");
         String finishReturn = methodBody(manager, "private static void finishReturn");
-        String returnMixin = read("src/main/java/fable/hideseek/imba/mixin/LobbyReturnMixin.java");
+        String returnMixin = readOrEmpty("src/main/java/fable/hideseek/imba/mixin/LobbyReturnMixin.java");
 
         assertTrue(returnMixin.contains("method = \"beginReturn\"")
                         && returnMixin.contains("at = @At(\"HEAD\")")
