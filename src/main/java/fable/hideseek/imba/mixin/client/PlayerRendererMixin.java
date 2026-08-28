@@ -3,10 +3,8 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
-import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -30,11 +28,6 @@ public class PlayerRendererMixin {
                         CallbackInfo ci) {
         var uuid = player.getUuid();
         var client = MinecraftClient.getInstance();
-        if (client.player == player
-                && client.options.getPerspective() != Perspective.FIRST_PERSON
-                && ClientMaskData.TYPES.get(uuid) == MaskType.PORTAL) {
-            return;
-        }
         if (!ClientMaskData.hasMask(uuid)) {
             return;
         }
