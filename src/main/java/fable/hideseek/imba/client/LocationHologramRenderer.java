@@ -1,6 +1,6 @@
 package fable.hideseek.imba.client;
 
-import fable.hideseek.imba.client.ClientLocationPhotos;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
