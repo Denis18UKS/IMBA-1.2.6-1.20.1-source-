@@ -34,6 +34,22 @@ public final class ClientGameState {
     }
 
     public static void tick() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (suppressSneakUntilRelease) {
+            if (client.player == null) {
+                clearSneakSuppression();
+            } else if (client.options.sneakKey.isPressed()) {
+                if (client.player.input != null) {
+                    client.player.input.sneaking = false;
+                }
+                client.player.setSneaking(false);
+                client.player.setPose(net.minecraft.entity.EntityPose.STANDING);
+            } else {
+                // The physical sneak key has been released; normal Minecraft sneak handling may resume.
+                clearSneakSuppression();
+            }
+        }
+
         final float step = 0.10F; // ~0.5s fade for 60fps/20tps clients
         if (returnBlackoutTarget) {
             returnBlackoutAlpha = Math.min(1.0F, returnBlackoutAlpha + step);
