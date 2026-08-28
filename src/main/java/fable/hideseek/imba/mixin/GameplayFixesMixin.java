@@ -1,5 +1,6 @@
 package fable.hideseek.imba.mixin;
 
+import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.mask.MaskState;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -11,14 +12,14 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Small, isolated gameplay overrides so the attached GameManager stays untouched. */
-@Mixin(targets = "fable.hideseek.imba.game.GameManager")
+@Mixin(GameManager.class)
 public abstract class GameplayFixesMixin {
     private static final int PORTAL_DELAY_TICKS = 75;
     private static final String FAIL_SOUND_COMMAND =
             "playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1";
     private static final String CLEAR_ITEMS_COMMAND = "kill @e[type=item]";
 
-    @ModifyConstant(method = "tickPortalMasks", constant = @Constant(intValue = 30))
+    @ModifyConstant(method = "tickPortalMasks", constant = @Constant(intValue = 30), remap = false)
     private static int imba$increasePortalMaskDesync(int original) {
         return PORTAL_DELAY_TICKS;
     }
