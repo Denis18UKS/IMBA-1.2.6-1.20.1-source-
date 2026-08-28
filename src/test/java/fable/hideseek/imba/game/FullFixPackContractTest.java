@@ -3,6 +3,7 @@ package fable.hideseek.imba.game;
 import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FullFixPackContractTest {
@@ -34,7 +35,9 @@ class FullFixPackContractTest {
     }
     @Test void portalSelfVisibleThirdPersonAndFixationLeavesSneak() throws Exception {
         String renderer=read("src/main/java/fable/hideseek/imba/mixin/client/PlayerRendererMixin.java");
-        assertTrue(renderer.contains("Perspective.FIRST_PERSON")&&renderer.contains("MaskType.PORTAL")&&renderer.contains("client.player == player"));
+        assertTrue(renderer.contains("ClientMaskData.hasMask(uuid)"));
+        assertFalse(renderer.contains("ClientMaskData.TYPES.get(uuid) == MaskType.PORTAL"));
+        assertFalse(renderer.contains("client.player == player"));
         assertTrue(read("src/main/java/fable/hideseek/imba/ImbaClient.java").contains("cp.input.sneaking=false"));
         assertTrue(read("src/main/java/fable/hideseek/imba/item/HideButtonHandler.java").contains("player.setSneaking(false)"));
     }
