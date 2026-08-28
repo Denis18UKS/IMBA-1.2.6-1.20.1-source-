@@ -1,6 +1,6 @@
 package fable.hideseek.imba.client;
 
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import fable.hideseek.imba.client.ClientLocationPhotos;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -44,7 +44,7 @@ public final class LocationHologramRenderer {
                 float size = BASE_SIZE * scale;
                 float half = size / 2.0F;
 
-                Identifier texture = ClientLocationPhotos.hologramTexture(projector.location(), projector.light());
+                Identifier texture = ClientLocationPhotos.hologramTexture(projector.location(), projector.light(), projector.contrast());
                 VertexConsumer photo = ctx.consumers().getBuffer(RenderLayer.getEntityCutoutNoCull(texture));
 
                 // ЕДИНСТВЕННЫЙ draw-call фотографии. NoCull делает этот quad

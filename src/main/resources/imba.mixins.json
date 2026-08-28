@@ -25,7 +25,8 @@
     "HiderDamageMixin",
     "HideButtonSafetyMixin",
     "OverlayBarrierCollisionMixin",
-    "ServerPlayerMessageFilterMixin"
+    "ServerPlayerMessageFilterMixin",
+    "GameplayFixesMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
