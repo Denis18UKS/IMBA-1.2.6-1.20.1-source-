@@ -3,7 +3,6 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
@@ -27,7 +26,6 @@ public class PlayerRendererMixin {
                         int light,
                         CallbackInfo ci) {
         var uuid = player.getUuid();
-        var client = MinecraftClient.getInstance();
         if (!ClientMaskData.hasMask(uuid)) {
             return;
         }
