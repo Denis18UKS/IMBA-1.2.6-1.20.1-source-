@@ -34,16 +34,26 @@ jobs:
           import gzip, io, pathlib, tarfile, zipfile
           p = pathlib.Path('/tmp/fifth-payload/payload.bin')
           raw = p.read_bytes()
+          print('payload bytes:', len(raw), 'magic:', raw[:8].hex())
           data = gzip.decompress(raw) if raw[:2] == b'\x1f\x8b' else raw
+          print('decompressed bytes:', len(data), 'magic:', data[:8].hex())
           if data[:2] == b'PK':
               with zipfile.ZipFile(io.BytesIO(data)) as z:
+                  print('zip entries:', len(z.namelist()))
+                  print('\n'.join(z.namelist()[:80]))
                   z.extractall('/tmp/fifth-src')
           else:
               with tarfile.open(fileobj=io.BytesIO(data), mode='r:*') as t:
+                  names = t.getnames()
+                  print('tar entries:', len(names))
+                  print('\n'.join(names[:80]))
                   t.extractall('/tmp/fifth-src')
           PY
-          find /tmp/fifth-src -name VideoPlayerSession.java -print
-          test "$(find /tmp/fifth-src -name VideoPlayerSession.java | wc -l)" -eq 1
+          echo '--- extracted top-level ---'
+          find /tmp/fifth-src -maxdepth 3 -type f | head -100
+          echo '--- video source candidates ---'
+          find /tmp/fifth-src -type f \( -name '*VideoPlayer*' -o -name '*VideoFrame*' -o -name '*fifth.mixins.json' \) -print
+          test "$(find /tmp/fifth-src -type f -name 'VideoPlayerSession.java' | wc -l)" -eq 1
 
       - name: Patch raw video frame upload
         shell: bash
