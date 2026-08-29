@@ -3,10 +3,7 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
-import fable.hideseek.imba.mask.MaskType;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -19,35 +16,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PlayerEntityRenderer.class)
 public class PlayerRendererMixin {
-
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void render(AbstractClientPlayerEntity player,
-                        float yaw,
-                        float tickDelta,
-                        MatrixStack matrices,
-                        VertexConsumerProvider consumers,
-                        int light,
-                        CallbackInfo ci) {
+    private void render(AbstractClientPlayerEntity player, float yaw, float tickDelta,
+            MatrixStack matrices, VertexConsumerProvider consumers, int light, CallbackInfo ci) {
         var uuid = player.getUuid();
-        var client = MinecraftClient.getInstance();
-        if (client.player == player
-                && client.options.getPerspective() != Perspective.FIRST_PERSON
-                && ClientMaskData.TYPES.get(uuid) == MaskType.PORTAL) {
-            return;
-        }
-        if (!ClientMaskData.hasMask(uuid)) {
-            return;
-        }
+        if (!ClientMaskData.hasMask(uuid)) return;
 
         ci.cancel();
-        int maskLight = MaskLightHelper.resolve(
-                uuid, player.getWorld(), player.getX(), player.getY(), player.getZ());
+        int maskLight = MaskLightHelper.resolve(uuid, player.getWorld(), player.getX(), player.getY(), player.getZ());
         Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
         double renderX = anchor == null ? player.getX() : anchor.x;
         double renderY = anchor == null ? player.getY() : anchor.y;
         double renderZ = anchor == null ? player.getZ() : anchor.z;
         BlockPos renderPos = BlockPos.ofFloored(renderX, renderY + 0.5D, renderZ);
-        MaskRenderHelper.renderMask(
-                uuid, matrices, consumers, maskLight, player.getWorld(), renderPos);
+        MaskRenderHelper.renderMask(uuid, matrices, consumers, maskLight, player.getWorld(), renderPos);
     }
 }
