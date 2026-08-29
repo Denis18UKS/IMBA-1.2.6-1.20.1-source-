@@ -1,0 +1,115 @@
+name: Fifth VHS crash fix
+
+on:
+  push:
+    branches:
+      - fifth-vhs-crashfix-20260829
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-fifth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout payload repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Reconstruct Fifth Horror source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/fifth-payload /tmp/fifth-src
+          mkdir -p /tmp/fifth-payload /tmp/fifth-src
+          cat .fifth-part-* | tr -d '\r\n \t' | base64 -d > /tmp/fifth-payload/payload.bin
+          python3 - <<'PY'
+          import gzip, io, pathlib, tarfile, zipfile
+          p = pathlib.Path('/tmp/fifth-payload/payload.bin')
+          raw = p.read_bytes()
+          data = gzip.decompress(raw) if raw[:2] == b'\x1f\x8b' else raw
+          if data[:2] == b'PK':
+              with zipfile.ZipFile(io.BytesIO(data)) as z:
+                  z.extractall('/tmp/fifth-src')
+          else:
+              with tarfile.open(fileobj=io.BytesIO(data), mode='r:*') as t:
+                  t.extractall('/tmp/fifth-src')
+          PY
+          find /tmp/fifth-src -name VideoPlayerSession.java -print
+          test "$(find /tmp/fifth-src -name VideoPlayerSession.java | wc -l)" -eq 1
+
+      - name: Patch raw video frame upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/fifth-src')
+          player = next(root.rglob('VideoPlayerSession.java'))
+          pixels = next(root.rglob('VideoFramePixels.java'))
+          mixins = next(root.rglob('fifth.mixins.json'))
+          mixin_dir = next(p for p in root.rglob('ru/fifth/horror/mixin') if p.is_dir())
+
+          s = player.read_text()
+          s = s.replace('import net.minecraft.class_310;\n', 'import net.minecraft.class_310;\nimport org.lwjgl.system.MemoryUtil;\n')
+          old = '''            ByteBuffer rgba = VideoFramePixels.argbToRgbaBuffer(frame.argb, OUTPUT_WIDTH, OUTPUT_HEIGHT);\n            class_1011 nextImage = class_1011.method_4303(class_1011.class_1012.field_4997, rgba);\n'''
+          new = '''            ByteBuffer rgba = VideoFramePixels.argbToRgbaBuffer(frame.argb, OUTPUT_WIDTH, OUTPUT_HEIGHT);\n            class_1011 nextImage = new class_1011(class_1011.class_1012.field_4997, OUTPUT_WIDTH, OUTPUT_HEIGHT, false);\n            try {\n                long pointer = ((ru.fifth.horror.mixin.NativeImageAccessor) (Object) nextImage).fiven$getPointer();\n                MemoryUtil.memCopy(MemoryUtil.memAddress(rgba), pointer, rgba.remaining());\n            } finally {\n                MemoryUtil.memFree(rgba);\n            }\n'''
+          if old not in s:
+              raise SystemExit('VideoPlayerSession install block not found')
+          player.write_text(s.replace(old, new, 1))
+
+          p = pixels.read_text()
+          p = p.replace('ByteBuffer rgba = ByteBuffer.allocate(Math.multiplyExact(Math.multiplyExact(width, height), 4));', 'ByteBuffer rgba = ByteBuffer.allocateDirect(Math.multiplyExact(Math.multiplyExact(width, height), 4));')
+          pixels.write_text(p)
+
+          accessor = mixin_dir / 'NativeImageAccessor.java'
+          accessor.write_text('''package ru.fifth.horror.mixin;\n\nimport net.minecraft.class_1011;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.gen.Accessor;\n\n@Mixin(class_1011.class)\npublic interface NativeImageAccessor {\n    @Accessor("field_4988")\n    long fiven$getPointer();\n}\n''')
+
+          m = mixins.read_text()
+          if '"NativeImageAccessor"' not in m:
+              m = m.replace('    "GameRendererAccessor",\n', '    "GameRendererAccessor",\n    "NativeImageAccessor",\n')
+          mixins.write_text(m)
+          print('Patched', player)
+          print('Added', accessor)
+          PY
+
+      - name: Build patched Fifth Horror Engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/fifth-src
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon --stacktrace
+
+      - name: Verify production JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar_file="$(find /tmp/fifth-src/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | head -n1)"
+          test -n "$jar_file"
+          unzip -t "$jar_file" >/dev/null
+          unzip -p "$jar_file" ru/fifth/horror/client/video/VideoPlayerSession.class >/tmp/VideoPlayerSession.class
+          unzip -p "$jar_file" ru/fifth/horror/mixin/NativeImageAccessor.class >/tmp/NativeImageAccessor.class
+          echo "Production JAR: $jar_file"
+          sha256sum "$jar_file"
+
+      - name: Upload production JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiven-vhs-crashfix-jar
+          path: /tmp/fifth-src/build/libs/*.jar
+          if-no-files-found: error
+
+      - name: Upload patched source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiven-vhs-crashfix-sources
+          path: /tmp/fifth-src
+          if-no-files-found: error
