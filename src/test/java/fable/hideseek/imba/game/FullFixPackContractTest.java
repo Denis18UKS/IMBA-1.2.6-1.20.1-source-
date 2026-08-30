@@ -27,6 +27,10 @@ class FullFixPackContractTest {
         assertTrue(mixin.contains("normalizeLobbySpreadPositions"));
         assertTrue(state.contains("returnBlackoutAlpha")&&state.contains("returnBlackoutTarget"));
     }
+    @Test void lobbyReturnMixinIsRegistered() throws Exception {
+        String mixins=read("src/main/resources/imba.mixins.json");
+        assertTrue(mixins.contains("\"LobbyReturnMixin\""));
+    }
     @Test void lobbySpreadKeepsExactRequestedCommand() throws Exception {
         String mixin=read("src/main/java/fable/hideseek/imba/mixin/LobbyReturnMixin.java");
         assertTrue(mixin.contains("spreadplayers -131.49 148.72 2 5 under -29 false @a"));
