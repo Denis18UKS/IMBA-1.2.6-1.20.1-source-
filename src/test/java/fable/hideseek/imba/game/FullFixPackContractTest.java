@@ -27,6 +27,7 @@ class FullFixPackContractTest {
         assertTrue(mixin.contains("normalizeLobbySpreadPositions"));
         assertTrue(state.contains("returnBlackoutAlpha")&&state.contains("returnBlackoutTarget"));
     }
+    // Regression: the class existing in the JAR is useless unless Mixin actually loads it.
     @Test void lobbyReturnMixinIsRegistered() throws Exception {
         String mixins=read("src/main/resources/imba.mixins.json");
         assertTrue(mixins.contains("\"LobbyReturnMixin\""));
