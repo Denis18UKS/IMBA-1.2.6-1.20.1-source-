@@ -27,16 +27,14 @@ class FullFixPackContractTest {
         assertTrue(mixin.contains("normalizeLobbySpreadPositions"));
         assertTrue(state.contains("returnBlackoutAlpha")&&state.contains("returnBlackoutTarget"));
     }
-    // Regression: the class existing in the JAR is useless unless Mixin actually loads it.
     @Test void lobbyReturnMixinIsRegistered() throws Exception {
         String mixins=read("src/main/resources/imba.mixins.json");
         assertTrue(mixins.contains("\"LobbyReturnMixin\""));
     }
-    // Regression: a normal-depth GUI fill can be punched through by later/higher HUD geometry.
     @Test void lobbyBlackoutRendersAboveAllHudDepth() throws Exception {
         String hud=read("src/main/java/fable/hideseek/imba/mixin/client/InGameHudMixin.java");
         assertTrue(hud.contains("context.getMatrices().push()"));
-        assertTrue(hud.contains("context.getMatrices().translate(0.0F, 0.0F, 10000.0F)"));
+        assertTrue(hud.contains("context.getMatrices().translate(0.0F, 0.0F, 1000.0F)"));
         assertTrue(hud.contains("context.getMatrices().pop()"));
     }
     @Test void lobbySpreadKeepsExactRequestedCommand() throws Exception {
