@@ -32,6 +32,13 @@ class FullFixPackContractTest {
         String mixins=read("src/main/resources/imba.mixins.json");
         assertTrue(mixins.contains("\"LobbyReturnMixin\""));
     }
+    // Regression: a normal-depth GUI fill can be punched through by later/higher HUD geometry.
+    @Test void lobbyBlackoutRendersAboveAllHudDepth() throws Exception {
+        String hud=read("src/main/java/fable/hideseek/imba/mixin/client/InGameHudMixin.java");
+        assertTrue(hud.contains("context.getMatrices().push()"));
+        assertTrue(hud.contains("context.getMatrices().translate(0.0F, 0.0F, 10000.0F)"));
+        assertTrue(hud.contains("context.getMatrices().pop()"));
+    }
     @Test void lobbySpreadKeepsExactRequestedCommand() throws Exception {
         String mixin=read("src/main/java/fable/hideseek/imba/mixin/LobbyReturnMixin.java");
         assertTrue(mixin.contains("spreadplayers -131.49 148.72 2 5 under -29 false @a"));
