@@ -39,7 +39,7 @@ public abstract class InGameHudMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         int a = Math.max(0, Math.min(255, Math.round(alpha * 255.0F)));
         context.getMatrices().push();
-        context.getMatrices().translate(0.0F, 0.0F, 10000.0F);
+        context.getMatrices().translate(0.0F, 0.0F, 1000.0F);
         context.fill(0, 0, client.getWindow().getScaledWidth(), client.getWindow().getScaledHeight(), a << 24);
         context.getMatrices().pop();
     }
