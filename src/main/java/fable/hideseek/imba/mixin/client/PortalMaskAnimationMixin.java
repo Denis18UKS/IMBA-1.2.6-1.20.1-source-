@@ -18,8 +18,7 @@ public abstract class PortalMaskAnimationMixin {
             method = "renderMask",
             at = @At(
                     value = "INVOKE",
-                    target = "Lfable/hideseek/imba/client/MaskRenderHelper;renderBlock(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;ILnet/minecraft/block/BlockState;)V"),
-            remap = false)
+                    target = "Lfable/hideseek/imba/client/MaskRenderHelper;renderBlock(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;ILnet/minecraft/block/BlockState;)V"))
     private static void imba$renderPortalMaskFrame(MatrixStack matrices, VertexConsumerProvider consumers,
                                                     int light, BlockState state) {
         if (state.isOf(Blocks.NETHER_PORTAL)) {
