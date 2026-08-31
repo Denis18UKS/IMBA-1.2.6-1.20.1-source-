@@ -72,8 +72,8 @@ class PortalReturnTimingContractTest {
         assertTrue(clock.contains("renderBlockAsEntity"));
         assertTrue(clock.contains("SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE"));
         assertTrue(clock.contains("block/nether_portal"));
+        assertTrue(clock.contains("PortalFrameVertexConsumer"));
         assertFalse(clock.contains("vertices.vertex"));
-        assertFalse(clock.contains("RenderLayer.getEntityTranslucent(PORTAL_TEXTURE)"));
     }
 
     @Test
