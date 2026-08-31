@@ -66,14 +66,24 @@ class PortalReturnTimingContractTest {
     }
 
     @Test
-    void playerPortalUsesVanillaNetherPortalModelInsteadOfRawTextureQuad() throws Exception {
+    void playerPortalFreezePreservesTheWorkingV10VanillaBlockAtlasPath() throws Exception {
+        String helper = read("src/main/java/fable/hideseek/imba/client/MaskRenderHelper.java");
         String clock = read("src/main/java/fable/hideseek/imba/client/PortalMaskAnimationClock.java");
-        assertTrue(clock.contains("Blocks.NETHER_PORTAL.getDefaultState()"));
-        assertTrue(clock.contains("renderBlockAsEntity"));
-        assertTrue(clock.contains("SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE"));
+        String mixins = read("src/main/resources/imba.mixins.json");
+
+        // The working v10 renderer must stay the source of portal geometry/state.
+        assertTrue(helper.contains("Blocks.NETHER_PORTAL.getDefaultState()"));
+        assertTrue(helper.contains("renderBlock(matrices, consumers, light, Blocks.NETHER_PORTAL.getDefaultState())"));
+        assertFalse(helper.contains("PortalMaskAnimationClock"));
+
+        // Freeze may only swap the animated atlas sprite; it must not use a raw PNG/entity layer.
+        assertTrue(clock.contains("PORTAL_BUFFER_SPRITE"));
+        assertTrue(clock.contains("SpriteContentsUploadAccessor"));
+        assertTrue(clock.contains("consumers.getBuffer(requestedLayer)"));
         assertTrue(clock.contains("block/nether_portal"));
-        assertTrue(clock.contains("PortalFrameVertexConsumer"));
-        assertFalse(clock.contains("vertices.vertex"));
+        assertFalse(clock.contains("RenderLayer.getEntityTranslucent"));
+        assertFalse(clock.contains("PORTAL_TEXTURE"));
+        assertTrue(mixins.contains("client.SpriteContentsUploadAccessor"));
     }
 
     @Test
