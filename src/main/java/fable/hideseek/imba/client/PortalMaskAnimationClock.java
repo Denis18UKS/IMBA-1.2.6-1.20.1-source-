@@ -15,7 +15,7 @@ import net.minecraft.util.Identifier;
  * Controls only the animation clock of the player-portal mask.
  *
  * Geometry is always produced by Minecraft's own minecraft:nether_portal baked
- * block model.  We only remap the portal sprite UVs to a selected frame of the
+ * block model. We only remap the portal sprite UVs to a selected frame of the
  * vanilla 32-frame texture sheet so the configured end-of-cycle freeze can be
  * accumulated without replacing the portal with a custom plane/model.
  */
@@ -45,8 +45,8 @@ public final class PortalMaskAnimationClock {
         int frame = frameIndex();
 
         /*
-         * Keep Minecraft's portal model/shape/rotation exactly as-is.  The
-         * provider below changes only where that model reads its UVs from:
+         * Keep Minecraft's portal model/shape/rotation exactly as-is. The
+         * provider changes only where that vanilla model reads its UVs from:
          * atlas-local portal UV -> the chosen frame in vanilla nether_portal.png.
          */
         VertexConsumerProvider frameProvider = requestedLayer -> {
