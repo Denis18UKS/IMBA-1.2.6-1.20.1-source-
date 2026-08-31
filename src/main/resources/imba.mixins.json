@@ -51,7 +51,8 @@
     "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin",
     "client.AdvancementToastMixin",
-    "client.PortalMaskAnimationMixin"
+    "client.PortalMaskAnimationMixin",
+    "client.SpriteContentsUploadAccessor"
   ],
   "injectors": {"defaultRequire": 1}
 }
