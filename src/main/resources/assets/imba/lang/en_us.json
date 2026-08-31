@@ -40,5 +40,7 @@
   "item.imba.air_fixation_tool": "Air fixation configurator",
   "item.imba.message_settings_tool": "Message Settings Tool",
   "item.imba.overlay_barrier": "Overlay Barrier",
-  "item.imba.mask_hitbox_tool": "Non-full Mask Hitbox Tool"
+  "item.imba.mask_hitbox_tool": "Non-full Mask Hitbox Tool",
+  "item.imba.return_timing_tool": "Lobby return timing tool",
+  "item.imba.portal_animation_tool": "Player portal animation freeze tool"
 }
