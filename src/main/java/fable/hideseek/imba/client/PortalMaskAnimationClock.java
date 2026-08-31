@@ -1,19 +1,17 @@
 package fable.hideseek.imba.client;
 
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.OverlayTexture;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
 
 public final class PortalMaskAnimationClock {
-    private static final Identifier PORTAL_TEXTURE = new Identifier("minecraft", "textures/block/nether_portal.png");
+    private static final Identifier PORTAL_SPRITE = new Identifier("minecraft", "block/nether_portal");
     private static final int FRAME_COUNT = 32;
-    private static final int FULL_BRIGHT = 15728880;
 
     private PortalMaskAnimationClock() {
     }
@@ -28,37 +26,28 @@ public final class PortalMaskAnimationClock {
         return Math.min(FRAME_COUNT - 1, cycleTick);
     }
 
+    /**
+     * Render exactly the vanilla minecraft:nether_portal baked model.  The old
+     * implementation sampled textures/block/nether_portal.png as a raw entity
+     * texture, which exposed the vertical animation sheet as stripes and lost
+     * the vanilla 4/16-thick portal geometry.
+     *
+     * The visual pause is applied by temporarily selecting the requested frame
+     * in the block-atlas portal sprite while the vanilla block model is drawn.
+     * PortalMaskSpriteFrame supplies/restores the atlas frame around this call.
+     */
     public static void renderPortalMaskFrame(MatrixStack matrices, VertexConsumerProvider consumers, int light) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        SpriteAtlasTexture atlas = client.getBakedModelManager().getAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+        Sprite sprite = atlas.getSprite(PORTAL_SPRITE);
         int frame = frameIndex();
-        float v0 = frame / (float) FRAME_COUNT;
-        float v1 = (frame + 1) / (float) FRAME_COUNT;
-        VertexConsumer vertices = consumers.getBuffer(RenderLayer.getEntityTranslucent(PORTAL_TEXTURE));
-        Matrix4f position = matrices.peek().getPositionMatrix();
-        Matrix3f normal = matrices.peek().getNormalMatrix();
-        int packedLight = Math.max(light, FULL_BRIGHT);
-        float zFront = 0.501F;
-        float zBack = 0.499F;
 
-        vertex(vertices, position, normal, 0F, 0F, zFront, 0F, v1, packedLight, 0F, 0F, 1F);
-        vertex(vertices, position, normal, 1F, 0F, zFront, 1F, v1, packedLight, 0F, 0F, 1F);
-        vertex(vertices, position, normal, 1F, 1F, zFront, 1F, v0, packedLight, 0F, 0F, 1F);
-        vertex(vertices, position, normal, 0F, 1F, zFront, 0F, v0, packedLight, 0F, 0F, 1F);
-
-        vertex(vertices, position, normal, 1F, 0F, zBack, 1F, v1, packedLight, 0F, 0F, -1F);
-        vertex(vertices, position, normal, 0F, 0F, zBack, 0F, v1, packedLight, 0F, 0F, -1F);
-        vertex(vertices, position, normal, 0F, 1F, zBack, 0F, v0, packedLight, 0F, 0F, -1F);
-        vertex(vertices, position, normal, 1F, 1F, zBack, 1F, v0, packedLight, 0F, 0F, -1F);
-    }
-
-    private static void vertex(VertexConsumer vertices, Matrix4f position, Matrix3f normal,
-                               float x, float y, float z, float u, float v, int light,
-                               float nx, float ny, float nz) {
-        vertices.vertex(position, x, y, z)
-                .color(255, 255, 255, 255)
-                .texture(u, v)
-                .overlay(OverlayTexture.DEFAULT_UV)
-                .light(light)
-                .normal(normal, nx, ny, nz)
-                .next();
+        PortalMaskSpriteFrame.withFrame(sprite, frame, () ->
+                client.getBlockRenderManager().renderBlockAsEntity(
+                        Blocks.NETHER_PORTAL.getDefaultState(),
+                        matrices,
+                        consumers,
+                        light,
+                        OverlayTexture.DEFAULT_UV));
     }
 }
