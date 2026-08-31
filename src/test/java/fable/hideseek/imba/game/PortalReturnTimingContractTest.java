@@ -57,7 +57,7 @@ class PortalReturnTimingContractTest {
 
         String config = read(configPath.toString());
         String clock = read(clockPath.toString());
-        String render = read("src/main/java/fable/hideseek/imba/client/MaskRenderHelper.java");
+        String render = read("src/main/java/fable/hideseek/imba/mixin/client/PortalMaskAnimationMixin.java");
         assertTrue(config.contains("DEFAULT_FREEZE_TICKS = 10"));
         assertTrue(clock.contains("freezeTicks"));
         assertTrue(clock.contains("holdTicks"));
@@ -93,6 +93,7 @@ class PortalReturnTimingContractTest {
         assertTrue(mixin.contains("PortalTransitGuard"));
         assertTrue(mixin.contains("portalContacts"));
         assertTrue(mixin.contains("tickPortalMasks"));
+        assertTrue(mixin.contains("PLAYER_PORTAL_TICKS = 75"));
 
         String mixins = read("src/main/resources/imba.mixins.json");
         assertTrue(mixins.contains("\"GameManagerPortalTransitMixin\""));
