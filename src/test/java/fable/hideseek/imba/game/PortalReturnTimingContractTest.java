@@ -66,6 +66,17 @@ class PortalReturnTimingContractTest {
     }
 
     @Test
+    void playerPortalUsesVanillaNetherPortalModelInsteadOfRawTextureQuad() throws Exception {
+        String clock = read("src/main/java/fable/hideseek/imba/client/PortalMaskAnimationClock.java");
+        assertTrue(clock.contains("Blocks.NETHER_PORTAL.getDefaultState()"));
+        assertTrue(clock.contains("renderBlockAsEntity"));
+        assertTrue(clock.contains("SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE"));
+        assertTrue(clock.contains("block/nether_portal"));
+        assertFalse(clock.contains("vertices.vertex"));
+        assertFalse(clock.contains("RenderLayer.getEntityTranslucent(PORTAL_TEXTURE)"));
+    }
+
+    @Test
     void portalAnimationToolIsSeparateAndLiveSynced() throws Exception {
         String extension = read("src/main/java/fable/hideseek/imba/ImbaExtension.java");
         String client = read("src/main/java/fable/hideseek/imba/ImbaClientExtension.java");
