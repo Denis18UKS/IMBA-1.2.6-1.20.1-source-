@@ -17,7 +17,8 @@ class PortalReturnTimingContractTest {
     void seekerFailSoundRemainsBoundToHeartDeduction() throws Exception {
         String fixes = read("src/main/java/fable/hideseek/imba/mixin/GameplayFixesMixin.java");
         assertTrue(fixes.contains("damageSeekerHeart"));
-        assertTrue(fixes.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
+        assertTrue(fixes.contains("playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1"));
+        assertFalse(fixes.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
     }
 
     @Test
