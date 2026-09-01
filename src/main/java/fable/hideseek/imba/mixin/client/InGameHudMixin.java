@@ -38,6 +38,10 @@ public abstract class InGameHudMixin {
         if (alpha <= 0.001F) return;
         MinecraftClient client = MinecraftClient.getInstance();
         int a = Math.max(0, Math.min(255, Math.round(alpha * 255.0F)));
+        context.getMatrices().push();
+        // Draw above hotbar/chat GUI depth so a fully opaque blackout has no visible holes.
+        context.getMatrices().translate(0.0F, 0.0F, 1000.0F);
         context.fill(0, 0, client.getWindow().getScaledWidth(), client.getWindow().getScaledHeight(), a << 24);
+        context.getMatrices().pop();
     }
 }

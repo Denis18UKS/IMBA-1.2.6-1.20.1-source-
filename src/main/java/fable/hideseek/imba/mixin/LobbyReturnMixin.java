@@ -1,5 +1,6 @@
 package fable.hideseek.imba.mixin;
 
+import fable.hideseek.imba.config.ReturnTimingConfig;
 import fable.hideseek.imba.game.GameConfig;
 import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.net.LobbyReturnNetworking;
@@ -10,22 +11,61 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.shape.VoxelShape;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameManager.class)
 public abstract class LobbyReturnMixin {
-    private static final String LOBBY_SPREAD_COMMAND =
-            "spreadplayers -131.49 148.72 2 5 under -29 false @a";
+    private static final String LOBBY_SPREAD_COMMAND = "spreadplayers -131.49 148.72 2 5 under -29 false @a";
+    private static final int FADE_IN_TICKS = 10;
 
-    @Inject(method = "beginReturn", at = @At("HEAD"), remap = false)
-    private static void imba$enableLobbyReturnBlackout(MinecraftServer server, Text message, CallbackInfo ci) {
+    @Unique private static int imba$returnStage;
+    @Unique private static int imba$returnStageTicks;
+
+    @Shadow
+    private static void finishReturn(MinecraftServer server) {
+        throw new AssertionError();
+    }
+
+    @Inject(method = "beginReturn", at = @At("TAIL"), remap = false)
+    private static void imba$beginDelayedLobbyReturn(MinecraftServer server, Text message, CallbackInfo ci) {
+        LobbyReturnNetworking.broadcastReturnBlackout(server, false);
+        imba$returnStage = 1;
+        imba$returnStageTicks = Math.max(0, ReturnTimingConfig.preFadeTicks());
+        if (imba$returnStageTicks == 0) imba$startFade(server);
+    }
+
+    @Inject(method = "tickReturn", at = @At("HEAD"), cancellable = true, remap = false)
+    private static void imba$tickReturnTiming(MinecraftServer server, CallbackInfo ci) {
+        if (imba$returnStage == 0) return;
+        ci.cancel();
+
+        if (imba$returnStage == 1) {
+            if (--imba$returnStageTicks <= 0) imba$startFade(server);
+            return;
+        }
+
+        if (imba$returnStage == 2 && --imba$returnStageTicks <= 0) {
+            imba$returnStage = 0;
+            imba$returnStageTicks = 0;
+            finishReturn(server);
+        }
+    }
+
+    @Unique
+    private static void imba$startFade(MinecraftServer server) {
         LobbyReturnNetworking.broadcastReturnBlackout(server, true);
+        imba$returnStage = 2;
+        imba$returnStageTicks = FADE_IN_TICKS + Math.max(0, ReturnTimingConfig.preTeleportTicks());
     }
 
     @Inject(method = "finishReturn", at = @At("TAIL"), remap = false)
     private static void imba$spreadLobbyPlayersAndReveal(MinecraftServer server, CallbackInfo ci) {
+        imba$returnStage = 0;
+        imba$returnStageTicks = 0;
         try {
             server.getCommandManager().executeWithPrefix(server.getCommandSource(), LOBBY_SPREAD_COMMAND);
             normalizeLobbySpreadPositions(server);
