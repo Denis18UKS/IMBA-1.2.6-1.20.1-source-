@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class GameplayFixesMixin {
     private static final int PORTAL_DELAY_TICKS = 75;
     private static final String FAIL_SOUND_COMMAND =
-            "playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1";
+            "playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1";
     private static final String CLEAR_ITEMS_COMMAND = "kill @e[type=item]";
 
     @ModifyConstant(method = "tickPortalMasks", constant = @Constant(intValue = 30), remap = false)

@@ -3,6 +3,7 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
+import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
@@ -23,6 +24,12 @@ public class PlayerRendererMixin {
         if (!ClientMaskData.hasMask(uuid)) return;
 
         ci.cancel();
+        if (ClientMaskData.TYPES.get(uuid) == MaskType.PORTAL) {
+            // Deferred to WorldRenderer TAIL so translucent portal pixels cannot hide
+            // player/entity geometry rendered later in the normal entity pass.
+            return;
+        }
+
         int maskLight = MaskLightHelper.resolve(uuid, player.getWorld(), player.getX(), player.getY(), player.getZ());
         Vec3d anchor = ClientMaskData.getStatueAnchor(uuid);
         double renderX = anchor == null ? player.getX() : anchor.x;

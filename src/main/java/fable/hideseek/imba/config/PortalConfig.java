@@ -14,25 +14,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class PortalConfig {
-
-    private static final Gson GSON =
-            new GsonBuilder().setPrettyPrinting().create();
-
-    private static final Path OVERWORLD_PATH =
-            FabricLoader.getInstance()
-                    .getConfigDir()
-                    .resolve("imba_portal.json");
-
-    private static final Path NETHER_PATH =
-            FabricLoader.getInstance()
-                    .getConfigDir()
-                    .resolve("imba_portal_in_overworld.json");
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Path OVERWORLD_PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_portal.json");
+    private static final Path NETHER_PATH = FabricLoader.getInstance().getConfigDir().resolve("imba_portal_in_overworld.json");
 
     public static Data OVERWORLD = createNetherTarget();
     public static Data NETHER = createOverworldTarget();
 
-    private PortalConfig() {
-    }
+    private PortalConfig() {}
 
     public static void load() {
         OVERWORLD = loadConfig(OVERWORLD_PATH, createNetherTarget());
@@ -50,9 +39,9 @@ public final class PortalConfig {
 
     public static RegistryKey<World> worldKey(boolean fromNether) {
         Data data = get(fromNether);
-        return RegistryKey.of(
-                RegistryKeys.WORLD,
-                new Identifier(data.world));
+        Identifier id = Identifier.tryParse(data.world);
+        if (id == null) id = new Identifier(fromNether ? "minecraft:overworld" : "minecraft:the_nether");
+        return RegistryKey.of(RegistryKeys.WORLD, id);
     }
 
     public static Vec3d targetPos(boolean fromNether) {
@@ -65,13 +54,23 @@ public final class PortalConfig {
             saveConfig(path, defaults);
             return defaults;
         }
-
         try {
             Data data = GSON.fromJson(Files.readString(path), Data.class);
-            return data != null ? data : defaults;
+            Data merged = mergeWithDefaults(data, defaults);
+            saveConfig(path, merged);
+            return merged;
         } catch (IOException | RuntimeException exception) {
             return defaults;
         }
+    }
+
+    private static Data mergeWithDefaults(Data loaded, Data defaults) {
+        if (loaded == null) return defaults;
+        if (loaded.world == null || loaded.world.isBlank() || Identifier.tryParse(loaded.world) == null) {
+            loaded.world = defaults.world;
+        }
+        if (loaded.portalTicks <= 0) loaded.portalTicks = defaults.portalTicks;
+        return loaded;
     }
 
     private static void saveConfig(Path path, Data data) {

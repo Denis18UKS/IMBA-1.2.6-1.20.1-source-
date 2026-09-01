@@ -27,7 +27,8 @@
     "OverlayBarrierCollisionMixin",
     "ServerPlayerMessageFilterMixin",
     "GameplayFixesMixin",
-    "LobbyReturnMixin"
+    "LobbyReturnMixin",
+    "GameManagerPortalTransitMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -49,7 +50,9 @@
     "client.MaskShadowMixin",
     "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin",
-    "client.AdvancementToastMixin"
+    "client.AdvancementToastMixin",
+    "client.PortalMaskAnimationMixin",
+    "client.SpriteContentsUploadAccessor"
   ],
   "injectors": {"defaultRequire": 1}
 }

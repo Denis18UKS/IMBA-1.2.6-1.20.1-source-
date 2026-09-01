@@ -11,7 +11,7 @@ class FullFixPackContractTest {
         String fixes=read("src/main/java/fable/hideseek/imba/mixin/GameplayFixesMixin.java");
         assertTrue(fixes.contains("PORTAL_DELAY_TICKS = 75"));
         assertTrue(fixes.contains("state.buttonPressed"));
-        assertTrue(fixes.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
+        assertTrue(fixes.contains("playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1"));
         assertTrue(fixes.contains("kill @e[type=item]"));
     }
     @Test void hologramContrastIsRoundTripped() throws Exception {
