@@ -3,7 +3,9 @@ package fable.hideseek.imba.mixin.client;
 import fable.hideseek.imba.client.ClientMaskData;
 import fable.hideseek.imba.client.MaskLightHelper;
 import fable.hideseek.imba.client.MaskRenderHelper;
+import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -22,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class WorldRendererMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void renderFirstPersonMask(
+    private void renderLateMasks(
             MatrixStack matrices,
             float tickDelta,
             long limitTime,
@@ -34,26 +36,58 @@ public class WorldRendererMixin {
             CallbackInfo ci) {
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) {
-            return;
-        }
-        if (camera == null) {
-            return;
-        }
-        if (!client.options.getPerspective().isFirstPerson()) {
-            return;
-        }
-
-        var uuid = client.player.getUuid();
-        if (!ClientMaskData.hasMask(uuid)) {
+        if (client.player == null || client.world == null || camera == null) {
             return;
         }
 
         VertexConsumerProvider.Immediate vertexConsumers = client.getBufferBuilders().getEntityVertexConsumers();
+        boolean rendered = renderPortalMasksLate(client, matrices, tickDelta, camera, vertexConsumers);
 
-        double playerX = client.player.prevX + (client.player.getX() - client.player.prevX) * tickDelta;
-        double playerY = client.player.prevY + (client.player.getY() - client.player.prevY) * tickDelta;
-        double playerZ = client.player.prevZ + (client.player.getZ() - client.player.prevZ) * tickDelta;
+        if (client.options.getPerspective().isFirstPerson()) {
+            var uuid = client.player.getUuid();
+            if (ClientMaskData.hasMask(uuid)
+                    && ClientMaskData.TYPES.get(uuid) != MaskType.PORTAL) {
+                renderMaskAtPlayer(client.player, client, matrices, tickDelta, camera, vertexConsumers);
+                rendered = true;
+            }
+        }
+
+        if (rendered) {
+            vertexConsumers.draw();
+        }
+    }
+
+    private static boolean renderPortalMasksLate(
+            MinecraftClient client,
+            MatrixStack matrices,
+            float tickDelta,
+            Camera camera,
+            VertexConsumerProvider.Immediate vertexConsumers) {
+        boolean rendered = false;
+        for (var player : client.world.getPlayers()) {
+            var uuid = player.getUuid();
+            if (!ClientMaskData.hasMask(uuid)
+                    || ClientMaskData.TYPES.get(uuid) != MaskType.PORTAL) {
+                continue;
+            }
+            renderMaskAtPlayer(player, client, matrices, tickDelta, camera, vertexConsumers);
+            rendered = true;
+        }
+        return rendered;
+    }
+
+    private static void renderMaskAtPlayer(
+            AbstractClientPlayerEntity player,
+            MinecraftClient client,
+            MatrixStack matrices,
+            float tickDelta,
+            Camera camera,
+            VertexConsumerProvider.Immediate vertexConsumers) {
+        var uuid = player.getUuid();
+
+        double playerX = player.prevX + (player.getX() - player.prevX) * tickDelta;
+        double playerY = player.prevY + (player.getY() - player.prevY) * tickDelta;
+        double playerZ = player.prevZ + (player.getZ() - player.prevZ) * tickDelta;
 
         double cameraX = camera.getPos().x;
         double cameraY = camera.getPos().y;
@@ -70,7 +104,5 @@ public class WorldRendererMixin {
         MaskRenderHelper.renderMask(
                 uuid, matrices, vertexConsumers, maskLight, client.world, renderPos);
         matrices.pop();
-
-        vertexConsumers.draw();
     }
 }
