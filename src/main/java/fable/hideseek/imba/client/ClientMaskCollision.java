@@ -39,7 +39,11 @@ public final class ClientMaskCollision {
     private static fable.hideseek.imba.config.MaskHitboxConfig.Bounds clientBounds(net.minecraft.block.Block block) {
         var entry = MaskHitboxClientData.get(net.minecraft.registry.Registries.BLOCK.getId(block).toString());
         if (entry == null) return null;
-        return entry.custom() || block == fable.hideseek.imba.ImbaMod.STONRCUTTER_LEZVIE ? entry.bounds() : null;
+        return entry.custom()
+                || block == fable.hideseek.imba.ImbaMod.STONRCUTTER_LEZVIE
+                || block == fable.hideseek.imba.ImbaMod.HANGING_LANTERN
+                ? entry.bounds()
+                : null;
     }
     public static boolean canKeepSneakMovement(Vec3d movement) {
         MinecraftClient client = MinecraftClient.getInstance(); if (client.player == null || client.world == null || !GameRoles.isSeeker(client.player)) return false;

@@ -22,7 +22,9 @@ public final class MaskCollisionShapes {
     public static List<Box> create(MaskState state) {
         if (state == null) return List.of();
         MaskHitboxConfig.Bounds custom = state.block != null
-                && (MaskHitboxConfig.hasCustom(state.block) || state.block == ImbaMod.STONRCUTTER_LEZVIE)
+                && (MaskHitboxConfig.hasCustom(state.block)
+                || state.block == ImbaMod.STONRCUTTER_LEZVIE
+                || state.block == ImbaMod.HANGING_LANTERN)
                 ? MaskHitboxConfig.boundsFor(state.block)
                 : null;
         return create(state.type, state.block, state.rotation, state.doorOpen,
