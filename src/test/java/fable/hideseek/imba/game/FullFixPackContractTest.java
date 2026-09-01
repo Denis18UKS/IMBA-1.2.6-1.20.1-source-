@@ -9,9 +9,10 @@ class FullFixPackContractTest {
     private static String read(String rel) throws Exception { return Files.readString(Path.of(rel)); }
     @Test void gameplayChangesArePresent() throws Exception {
         String fixes=read("src/main/java/fable/hideseek/imba/mixin/GameplayFixesMixin.java");
+        String deduction=read("src/main/java/fable/hideseek/imba/mixin/GameManagerExtensionMixin.java");
         assertTrue(fixes.contains("PORTAL_DELAY_TICKS = 75"));
         assertTrue(fixes.contains("state.buttonPressed"));
-        assertTrue(fixes.contains("playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1"));
+        assertTrue(deduction.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
         assertTrue(fixes.contains("kill @e[type=item]"));
     }
     @Test void hologramContrastIsRoundTripped() throws Exception {

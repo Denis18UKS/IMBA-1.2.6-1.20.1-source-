@@ -31,6 +31,8 @@ import java.util.UUID;
 @Mixin(GameManager.class)
 public abstract class GameManagerExtensionMixin {
     private static final int EFFECT_FOREVER = Integer.MAX_VALUE;
+    @Unique private static final String SEEKER_FAIL_SOUND_COMMAND =
+            "playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1";
     @Shadow(remap = false) @Final private static Set<UUID> currentSeekers;
     @Shadow(remap = false) @Final private static Set<UUID> eliminatedSeekers;
     @Shadow(remap = false) @Final private static Map<UUID, Vec3d> prepareSeekerAnchors;
@@ -75,6 +77,7 @@ public abstract class GameManagerExtensionMixin {
     @Inject(method = "damageSeekerHeart", at = @At("HEAD"), cancellable = true, remap = false)
     private static void imba$damageSeekerHeartForAllAssignedSeekers(ServerPlayerEntity seeker, String message, CallbackInfo ci) {
         if (seeker == null || eliminatedSeekers.contains(seeker.getUuid())) { ci.cancel(); return; }
+        imba$playSeekerFailSound(seeker);
         float newHealth = seeker.getHealth() - 2.0F;
         if (newHealth > 0.0F) { seeker.setHealth(newHealth); GameMessages.send(seeker, Text.literal(message)); ci.cancel(); return; }
         eliminatedSeekers.add(seeker.getUuid()); seeker.setHealth(1.0F); removeSeekerSword(seeker); teleportToLobby(seeker); seeker.clearStatusEffects();
@@ -83,6 +86,15 @@ public abstract class GameManagerExtensionMixin {
         GameMessages.send(seeker, "seeker.eliminated", Text.literal(message));
         ConfigurableMessages.actionBar(seeker, "seeker.eliminated", Text.literal("§cВы потеряли все сердца и выбыли из поиска"));
         MinecraftServer server = seeker.getServer(); if (server != null && !currentSeekers.isEmpty() && eliminatedSeekers.containsAll(currentSeekers)) finishHiderWinByHearts(server); ci.cancel();
+    }
+
+    @Unique
+    private static void imba$playSeekerFailSound(ServerPlayerEntity seeker) {
+        MinecraftServer server = seeker.getServer();
+        if (server != null) {
+            server.getCommandManager().executeWithPrefix(
+                    seeker.getCommandSource().withLevel(4), SEEKER_FAIL_SOUND_COMMAND);
+        }
     }
 
     @Inject(method = "tick", at = @At("HEAD"), remap = false)
