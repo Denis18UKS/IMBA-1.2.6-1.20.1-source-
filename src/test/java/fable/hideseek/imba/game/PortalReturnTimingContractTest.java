@@ -14,11 +14,22 @@ class PortalReturnTimingContractTest {
     }
 
     @Test
-    void seekerFailSoundRemainsBoundToHeartDeduction() throws Exception {
+    void seekerFailSoundUsesRequestedGenericHurtFromSeekerPosition() throws Exception {
         String fixes = read("src/main/java/fable/hideseek/imba/mixin/GameplayFixesMixin.java");
-        assertTrue(fixes.contains("damageSeekerHeart"));
-        assertTrue(fixes.contains("playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1"));
-        assertFalse(fixes.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
+        String deduction = read("src/main/java/fable/hideseek/imba/mixin/GameManagerExtensionMixin.java");
+
+        assertFalse(fixes.contains("damageSeekerHeart"),
+                "a later competing callback can be skipped after the deduction mixin cancels");
+        assertTrue(deduction.contains("playsound minecraft:entity.generic.hurt player @a ~ ~ ~ 10 1"));
+        assertFalse(deduction.contains("playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1"));
+        assertTrue(deduction.contains("seeker.getCommandSource().withLevel(4)"));
+        assertFalse(deduction.contains("server.getCommandSource(), SEEKER_FAIL_SOUND_COMMAND"));
+
+        int guard = deduction.indexOf("if (seeker == null || eliminatedSeekers.contains(seeker.getUuid()))");
+        int sound = deduction.indexOf("imba$playSeekerFailSound(seeker);");
+        int healthDeduction = deduction.indexOf("float newHealth = seeker.getHealth() - 2.0F;");
+        assertTrue(guard >= 0 && guard < sound && sound < healthDeduction,
+                "sound must run exactly on the live deduction path, after rejection guards and before heart loss");
     }
 
     @Test

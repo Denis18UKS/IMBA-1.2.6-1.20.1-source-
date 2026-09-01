@@ -101,6 +101,9 @@ public final class MaskHitboxConfig {
 
     public static Bounds defaultBounds(Block block) {
         if (block == null) return Bounds.FULL.copy();
+        if (block == ImbaMod.HANGING_LANTERN) {
+            return Bounds.FULL.copy();
+        }
         if (block == ImbaMod.STONRCUTTER_LEZVIE) {
             return new Bounds(0,0,0,16,8,16);
         }

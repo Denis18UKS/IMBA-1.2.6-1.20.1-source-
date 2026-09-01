@@ -15,8 +15,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GameManager.class)
 public abstract class GameplayFixesMixin {
     private static final int PORTAL_DELAY_TICKS = 75;
-    private static final String FAIL_SOUND_COMMAND =
-            "playsound minecraft:entity.player.hurt player @a ~ ~ ~ 10 1";
     private static final String CLEAR_ITEMS_COMMAND = "kill @e[type=item]";
 
     @ModifyConstant(method = "tickPortalMasks", constant = @Constant(intValue = 30), remap = false)
@@ -31,19 +29,6 @@ public abstract class GameplayFixesMixin {
                                                         CallbackInfo ci) {
         if (state.buttonPressed) {
             ci.cancel();
-        }
-    }
-
-    @Inject(method = "damageSeekerHeart", at = @At("HEAD"), remap = false)
-    private static void imba$playSeekerFailSound(ServerPlayerEntity seeker,
-                                                  String message,
-                                                  CallbackInfo ci) {
-        if (seeker == null) {
-            return;
-        }
-        MinecraftServer server = seeker.getServer();
-        if (server != null) {
-            server.getCommandManager().executeWithPrefix(server.getCommandSource(), FAIL_SOUND_COMMAND);
         }
     }
 

@@ -50,6 +50,7 @@ public final class MaskHitbox {
     private static boolean usesConfiguredBounds(Block block) {
         return block != null && (!MaskBlockConfig.isFull(block)
                 || MaskHitboxConfig.hasCustom(block)
-                || block == ImbaMod.STONRCUTTER_LEZVIE);
+                || block == ImbaMod.STONRCUTTER_LEZVIE
+                || block == ImbaMod.HANGING_LANTERN);
     }
 }
