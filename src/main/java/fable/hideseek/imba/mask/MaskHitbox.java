@@ -10,7 +10,7 @@ import net.minecraft.item.Item;
 public final class MaskHitbox {
     private static final EntityDimensions DEFAULT_PLAYER = EntityDimensions.fixed(.6F, 1.8F),
             BLOCK_LIKE = EntityDimensions.fixed(.98F, .98F),
-            DOOR = EntityDimensions.fixed(.98F, 1.98F),
+            DOOR = EntityDimensions.fixed(1.0F, 2.0F),
             SPECIAL_POTION = EntityDimensions.fixed(.50F, .70F);
     private static final float DEFAULT_PLAYER_EYE = 1.62F, BLOCK_LIKE_EYE = .85F,
             DOOR_EYE = 1.62F, SPECIAL_POTION_EYE = .30F;
