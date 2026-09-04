@@ -19,7 +19,6 @@ class MaskMovementCollisionContractTest {
         String serverMixin = read("src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java");
         String clientMixin = read("src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java");
         String mixins = read("src/main/resources/imba.mixins.json");
-
         assertTrue(helper.contains("OWNER_MAX_WIDTH = 0.60D"));
         assertTrue(helper.contains("OWNER_MAX_HEIGHT = 1.80D"));
         assertTrue(serverMixin.contains("MaskMovementCollision.ownerMovementBox"));
@@ -33,7 +32,6 @@ class MaskMovementCollisionContractTest {
         String hitbox = read("src/main/java/fable/hideseek/imba/mask/MaskHitbox.java");
         String serverMixin = read("src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java");
         String clientMixin = read("src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java");
-
         assertTrue(hitbox.contains("MaskService.isSpecialPotion(item)"));
         assertTrue(hitbox.contains("SPECIAL_POTION"));
         assertTrue(serverMixin.contains("MaskService.isSpecialPotion(state.item)"));
@@ -44,7 +42,6 @@ class MaskMovementCollisionContractTest {
     void doorVisualHitboxIsExactlyOneByTwoBlocksOnBothSides() throws Exception {
         String hitbox = read("src/main/java/fable/hideseek/imba/mask/MaskHitbox.java");
         String clientDimensions = read("src/main/java/fable/hideseek/imba/mixin/client/PlayerEntityClientMixin.java");
-
         assertTrue(hitbox.contains("DOOR = EntityDimensions.fixed(1.0F, 2.0F)"));
         assertTrue(clientDimensions.contains("if(type==MaskType.DOOR)"));
         assertTrue(clientDimensions.contains("MaskHitbox.getDimensions(type, item)"));
@@ -54,7 +51,6 @@ class MaskMovementCollisionContractTest {
     void existingBlockHitboxesAreNotReplacedByPlayerSizedDimensions() throws Exception {
         String hitbox = read("src/main/java/fable/hideseek/imba/mask/MaskHitbox.java");
         String config = read("src/main/java/fable/hideseek/imba/config/MaskHitboxConfig.java");
-
         assertTrue(hitbox.contains("BLOCK_LIKE"));
         assertTrue(hitbox.contains("MaskHitboxConfig.boundsFor(block)"));
         assertTrue(config.contains("block == ImbaMod.HANGING_LANTERN"));
@@ -65,7 +61,6 @@ class MaskMovementCollisionContractTest {
     void maskedOwnerDoesNotGetPushedOutByNeighbourBlocksOnClient() throws Exception {
         String pushOut = read("src/main/java/fable/hideseek/imba/mixin/client/ClientPlayerMaskPushOutMixin.java");
         String mixins = read("src/main/resources/imba.mixins.json");
-
         assertTrue(pushOut.contains("@Mixin(ClientPlayerEntity.class)"));
         assertTrue(pushOut.contains("method = \"pushOutOfBlocks\""));
         assertTrue(pushOut.contains("ClientMaskData.hasMask"));
@@ -77,7 +72,6 @@ class MaskMovementCollisionContractTest {
     @Test
     void serverPostMoveValidationUsesOwnerMovementBoxInsteadOfVisualMaskBox() throws Exception {
         String network = read("src/main/java/fable/hideseek/imba/mixin/ServerPlayNetworkHandlerMixin.java");
-
         assertTrue(network.contains("method = \"isPlayerNotCollidingWithBlocks\""));
         assertTrue(network.contains("MaskMovementCollision.ownerMovementBox"));
         assertTrue(network.contains("MaskState.hasMask(player.getUuid())"));
