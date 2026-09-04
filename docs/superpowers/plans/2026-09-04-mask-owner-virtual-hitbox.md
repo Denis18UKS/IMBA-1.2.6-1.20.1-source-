@@ -4,7 +4,7 @@
 
 **Goal:** Make the masked owner move with vanilla player physics while preserving block-like mask hitboxes for other players and mask systems.
 
-**Architecture:** Stop changing the server/local owner's `PlayerEntity` dimensions. Keep mask bounds in `MaskHitbox` and client remote-player dimensions / virtual mask geometry. Remove the v19-v21 movement workarounds that existed only because the owner carried a mask-sized real entity box.
+**Architecture:** Stop changing the server/local owner's `PlayerEntity` dimensions. Keep mask bounds in `MaskHitbox`, keep remote-player mask dimensions on observer clients, and keep mask-specific eye height unchanged. Remove the v19-v21 movement workarounds that existed only because the owner carried a mask-sized real entity box.
 
 **Tech Stack:** Java 17, Fabric 1.20.1, Yarn mappings, Mixin, JUnit 5, Gradle 8.2.
 
@@ -13,9 +13,10 @@
 ## Global Constraints
 
 - Minecraft/Fabric target stays 1.20.1 / Java 17.
-- Change only hitbox/collision/targeting code required by the separation.
+- Change only hitbox/collision code required by the separation.
 - Door external hitbox remains exactly `1.0 x 2.0`.
 - `imba:potion_2d` keeps special non-block bounds.
+- Preserve mask eye height/camera behavior.
 - No changes to sounds, commands, portals, round rules, visuals or unrelated gameplay.
 
 ---
@@ -26,28 +27,17 @@
 - Modify: `src/test/java/fable/hideseek/imba/game/MaskMovementCollisionContractTest.java`
 
 **Interfaces:**
-- Consumes: current `PlayerEntityMixin`, `PlayerEntityClientMixin`, `MaskHitbox`.
-- Produces: regression contract requiring server/local owner vanilla dimensions and remote-client mask dimensions.
+- Consumes: current `PlayerEntityMixin`, `PlayerEntityClientMixin`, `MaskHitbox`, active mixin list.
+- Produces: regression contract requiring server/local owner vanilla dimensions, remote-client mask dimensions and unchanged eye height.
 
 - [ ] **Step 1: Write the failing test**
 
-Add a test that asserts:
-
-```java
-String serverPlayer = read("src/main/java/fable/hideseek/imba/mixin/PlayerEntityMixin.java");
-String clientPlayer = read("src/main/java/fable/hideseek/imba/mixin/client/PlayerEntityClientMixin.java");
-assertFalse(serverPlayer.contains("MaskHitbox.getDimensions"));
-assertTrue(clientPlayer.contains("MinecraftClient.getInstance().player"));
-assertTrue(clientPlayer.contains("if (self == localPlayer) return"));
-assertTrue(clientPlayer.contains("MaskHitbox.getDimensions"));
-```
-
-Also assert the old whole-move workaround markers are absent from server/client `MaskedMovementCollisionMixin`.
+Assert that server `PlayerEntityMixin` no longer calls `MaskHitbox.getDimensions` but still calls `MaskHitbox.getEyeHeight`; local-client dimensions return before mask sizing; remote client still calls `MaskHitbox.getDimensions`; obsolete movement/push-out/open-door hooks are absent from `imba.mixins.json`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `./gradlew test --tests fable.hideseek.imba.game.MaskMovementCollisionContractTest --no-daemon --stacktrace`
-Expected: FAIL because masked owners still use `MaskHitbox.getDimensions` and the v21 whole-move swap still exists.
+Expected: FAIL because masked owners still use mask dimensions and the v19-v21 workaround mixins are still active.
 
 ---
 
@@ -56,22 +46,26 @@ Expected: FAIL because masked owners still use `MaskHitbox.getDimensions` and th
 **Files:**
 - Modify: `src/main/java/fable/hideseek/imba/mixin/PlayerEntityMixin.java`
 - Modify: `src/main/java/fable/hideseek/imba/mixin/client/PlayerEntityClientMixin.java`
-- Modify: `src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java`
-- Modify: `src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java`
-- Modify: `src/main/java/fable/hideseek/imba/mixin/client/ClientPlayerMaskPushOutMixin.java`
 - Modify: `src/main/java/fable/hideseek/imba/mixin/ServerPlayNetworkHandlerMixin.java`
+- Modify: `src/main/resources/imba.mixins.json`
+- Delete: `src/main/java/fable/hideseek/imba/mask/MaskMovementCollision.java`
+- Delete: `src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java`
+- Delete: `src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java`
+- Delete: `src/main/java/fable/hideseek/imba/mixin/client/ClientPlayerMaskPushOutMixin.java`
+- Delete: `src/main/java/fable/hideseek/imba/mixin/DoorCollisionMixin.java`
+- Delete: `src/main/java/fable/hideseek/imba/mixin/client/ClientDoorCollisionMixin.java`
 
 **Interfaces:**
-- Consumes: `MaskHitbox.getDimensions(MaskType, Block, Item)`, `ClientMaskData`.
-- Produces: vanilla physical dimensions for the server owner and local client, mask dimensions for remote masked players.
+- Consumes: `MaskHitbox.getDimensions(MaskType, Block, Item)`, `MaskHitbox.getEyeHeight(...)`, `ClientMaskData`.
+- Produces: vanilla physical dimensions for server/local owner, mask dimensions for remote masked players, unchanged mask eye height.
 
-- [ ] **Step 1: Remove server mask dimension overrides**
+- [ ] **Step 1: Remove only the server dimension override**
 
-Delete the `getDimensions` and `getActiveEyeHeight` injections from `PlayerEntityMixin`; leave unrelated statue/gameplay injections unchanged.
+Delete the `getDimensions` injection from `PlayerEntityMixin`. Keep the existing `getActiveEyeHeight` injection unchanged and preserve every unrelated statue/gameplay injection.
 
-- [ ] **Step 2: Restrict client mask dimensions to remote players**
+- [ ] **Step 2: Restrict only client dimensions to remote players**
 
-At the start of client dimension/eye-height injections resolve:
+In `clientDimensions`, resolve:
 
 ```java
 PlayerEntity self = (PlayerEntity) (Object) this;
@@ -79,11 +73,11 @@ PlayerEntity localPlayer = MinecraftClient.getInstance().player;
 if (self == localPlayer) return;
 ```
 
-Remote masked players keep the existing `MaskHitbox` / synced custom bounds behavior.
+Then keep all existing remote mask sizing logic. Leave `clientEyeHeight` mask behavior unchanged for both local and remote players.
 
-- [ ] **Step 3: Remove obsolete owner movement workarounds**
+- [ ] **Step 3: Remove obsolete owner-world collision workarounds**
 
-Make `MaskedMovementCollisionMixin`, `ClientMaskedMovementCollisionMixin` and `ClientPlayerMaskPushOutMixin` no-op/remove their owner-box and push-out injections. Remove the `isPlayerNotCollidingWithBlocks` owner-box `@ModifyVariable` from `ServerPlayNetworkHandlerMixin`; preserve unrelated restricted-item/statue packet code.
+Delete the three movement/push-out mixins, the two open-door owner-bypass mixins and `MaskMovementCollision`. Remove their entries from `imba.mixins.json`. Remove only the `isPlayerNotCollidingWithBlocks` `@ModifyVariable` and its now-unused imports from `ServerPlayNetworkHandlerMixin`; preserve restricted-item and statue packet handling.
 
 - [ ] **Step 4: Run focused test**
 
@@ -99,13 +93,13 @@ Expected: PASS.
 - Test: `src/test/java/fable/hideseek/imba/game/MaskHitboxAllBlocksContractTest.java`
 
 **Interfaces:**
-- Consumes: `MaskHitbox`, remote-client mask dimensions.
-- Produces: evidence that door/potion/block bounds were not changed.
+- Consumes: `MaskHitbox`, remote-client mask dimensions, `MaskCollisionShapes`.
+- Produces: evidence that door/potion/hanging-lantern external bounds were not changed.
 
 - [ ] **Step 1: Run hitbox tests**
 
 Run: `./gradlew test --tests fable.hideseek.imba.game.MaskMovementCollisionContractTest --tests fable.hideseek.imba.game.MaskHitboxAllBlocksContractTest --no-daemon --stacktrace`
-Expected: PASS, including door `1.0F, 2.0F` and special potion exclusions.
+Expected: PASS, including door `1.0F, 2.0F`, hanging-lantern full-block bounds and special potion exclusions.
 
 ---
 
