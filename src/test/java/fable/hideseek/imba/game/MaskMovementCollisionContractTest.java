@@ -60,4 +60,27 @@ class MaskMovementCollisionContractTest {
         assertTrue(config.contains("block == ImbaMod.HANGING_LANTERN"));
         assertFalse(hitbox.contains("if (type != MaskType.ITEM) return DEFAULT_PLAYER"));
     }
+
+    @Test
+    void maskedOwnerDoesNotGetPushedOutByNeighbourBlocksOnClient() throws Exception {
+        String pushOut = read("src/main/java/fable/hideseek/imba/mixin/client/ClientPlayerMaskPushOutMixin.java");
+        String mixins = read("src/main/resources/imba.mixins.json");
+
+        assertTrue(pushOut.contains("@Mixin(ClientPlayerEntity.class)"));
+        assertTrue(pushOut.contains("method = \"pushOutOfBlocks\""));
+        assertTrue(pushOut.contains("ClientMaskData.hasMask"));
+        assertTrue(pushOut.contains("ci.cancel()"));
+        assertTrue(pushOut.contains("MaskService.isSpecialPotion"));
+        assertTrue(mixins.contains("\"client.ClientPlayerMaskPushOutMixin\""));
+    }
+
+    @Test
+    void serverPostMoveValidationUsesOwnerMovementBoxInsteadOfVisualMaskBox() throws Exception {
+        String network = read("src/main/java/fable/hideseek/imba/mixin/ServerPlayNetworkHandlerMixin.java");
+
+        assertTrue(network.contains("method = \"isPlayerNotCollidingWithBlocks\""));
+        assertTrue(network.contains("MaskMovementCollision.ownerMovementBox"));
+        assertTrue(network.contains("MaskState.hasMask(player.getUuid())"));
+        assertTrue(network.contains("MaskService.isSpecialPotion(state.item)"));
+    }
 }
