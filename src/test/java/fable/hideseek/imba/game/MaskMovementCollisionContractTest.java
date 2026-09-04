@@ -77,4 +77,22 @@ class MaskMovementCollisionContractTest {
         assertTrue(network.contains("MaskState.hasMask(player.getUuid())"));
         assertTrue(network.contains("MaskService.isSpecialPotion(state.item)"));
     }
+
+    @Test
+    void ownerUsesNarrowBoxForWholeMoveThenRestoresVisualMaskBox() throws Exception {
+        String serverMixin = read("src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java");
+        String clientMixin = read("src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java");
+
+        assertTrue(serverMixin.contains("method = \"move\""));
+        assertTrue(serverMixin.contains("imba$beginOwnerMove"));
+        assertTrue(serverMixin.contains("imba$endOwnerMove"));
+        assertTrue(serverMixin.contains("setBoundingBox(MaskMovementCollision.ownerMovementBox"));
+        assertTrue(serverMixin.contains("MaskMovementCollision.restoreVisualBox"));
+
+        assertTrue(clientMixin.contains("method = \"move\""));
+        assertTrue(clientMixin.contains("imba$beginOwnerMoveClient"));
+        assertTrue(clientMixin.contains("imba$endOwnerMoveClient"));
+        assertTrue(clientMixin.contains("setBoundingBox(MaskMovementCollision.ownerMovementBox"));
+        assertTrue(clientMixin.contains("MaskMovementCollision.restoreVisualBox"));
+    }
 }
