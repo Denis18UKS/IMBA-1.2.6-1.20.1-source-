@@ -17,24 +17,27 @@ class MaskMovementCollisionContractTest {
     void ownerPhysicsIsVanillaWhileRemoteMaskHitboxStaysBlockLike() throws Exception {
         String serverPlayer = read("src/main/java/fable/hideseek/imba/mixin/PlayerEntityMixin.java");
         String clientPlayer = read("src/main/java/fable/hideseek/imba/mixin/client/PlayerEntityClientMixin.java");
-        String serverMove = read("src/main/java/fable/hideseek/imba/mixin/MaskedMovementCollisionMixin.java");
-        String clientMove = read("src/main/java/fable/hideseek/imba/mixin/client/ClientMaskedMovementCollisionMixin.java");
-        String pushOut = read("src/main/java/fable/hideseek/imba/mixin/client/ClientPlayerMaskPushOutMixin.java");
+        String mixins = read("src/main/resources/imba.mixins.json");
         String network = read("src/main/java/fable/hideseek/imba/mixin/ServerPlayNetworkHandlerMixin.java");
 
+        // The server owner must never carry mask-sized EntityDimensions through vanilla physics.
         assertFalse(serverPlayer.contains("MaskHitbox.getDimensions"));
-        assertFalse(serverPlayer.contains("MaskHitbox.getEyeHeight"));
+        // Preserve mask camera/eye-height behavior: this is not a collision change.
+        assertTrue(serverPlayer.contains("MaskHitbox.getEyeHeight"));
 
+        // The local client owner uses vanilla dimensions for prediction, while remote masked
+        // players still expose the external mask-sized hitbox to the observer/seeker client.
         assertTrue(clientPlayer.contains("MinecraftClient.getInstance().player"));
         assertTrue(clientPlayer.contains("if (self == localPlayer) return;"));
         assertTrue(clientPlayer.contains("MaskHitbox.getDimensions"));
         assertTrue(clientPlayer.contains("MaskHitbox.getEyeHeight"));
 
-        assertFalse(serverMove.contains("method = \"move\""));
-        assertFalse(serverMove.contains("MaskMovementCollision.ownerMovementBox"));
-        assertFalse(clientMove.contains("method = \"move\""));
-        assertFalse(clientMove.contains("MaskMovementCollision.ownerMovementBox"));
-        assertFalse(pushOut.contains("pushOutOfBlocks"));
+        // All v19-v21 owner-physics interception hooks are removed from the active mixin set.
+        assertFalse(mixins.contains("\"MaskedMovementCollisionMixin\""));
+        assertFalse(mixins.contains("\"client.ClientMaskedMovementCollisionMixin\""));
+        assertFalse(mixins.contains("\"client.ClientPlayerMaskPushOutMixin\""));
+        assertFalse(mixins.contains("\"DoorCollisionMixin\""));
+        assertFalse(mixins.contains("\"client.ClientDoorCollisionMixin\""));
         assertFalse(network.contains("isPlayerNotCollidingWithBlocks"));
     }
 
