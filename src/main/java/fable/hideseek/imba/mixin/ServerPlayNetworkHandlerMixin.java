@@ -1,42 +1,22 @@
 package fable.hideseek.imba.mixin;
 
 import fable.hideseek.imba.config.ItemRules;
-import fable.hideseek.imba.mask.MaskMovementCollision;
-import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.Box;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerPlayNetworkHandler.class)
 public abstract class ServerPlayNetworkHandlerMixin {
     
     @Shadow public ServerPlayerEntity player;
-
-    @ModifyVariable(
-            method = "isPlayerNotCollidingWithBlocks(Lnet/minecraft/world/WorldView;Lnet/minecraft/util/math/Box;DDD)Z",
-            at = @At("HEAD"),
-            argsOnly = true,
-            index = 2)
-    private Box imba$useOwnerMovementBoxForServerValidation(Box visualBox) {
-        if (visualBox == null || player == null || !MaskState.hasMask(player.getUuid())) {
-            return visualBox;
-        }
-        MaskState state = MaskState.get(player.getUuid());
-        if (state == null || MaskService.isSpecialPotion(state.item)) {
-            return visualBox;
-        }
-        return MaskMovementCollision.ownerMovementBox(visualBox);
-    }
     
     @Inject(method = "onPlayerAction", at = @At("HEAD"), cancellable = true)
     private void preventDropAndSwap(PlayerActionC2SPacket packet, CallbackInfo ci) {
