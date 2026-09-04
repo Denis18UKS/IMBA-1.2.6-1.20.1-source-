@@ -72,7 +72,7 @@ class MaskMovementCollisionContractTest {
     @Test
     void serverPostMoveValidationUsesOwnerMovementBoxInsteadOfVisualMaskBox() throws Exception {
         String network = read("src/main/java/fable/hideseek/imba/mixin/ServerPlayNetworkHandlerMixin.java");
-        assertTrue(network.contains("method = \"isPlayerNotCollidingWithBlocks\""));
+        assertTrue(network.contains("method = \"isPlayerNotCollidingWithBlocks("));
         assertTrue(network.contains("MaskMovementCollision.ownerMovementBox"));
         assertTrue(network.contains("MaskState.hasMask(player.getUuid())"));
         assertTrue(network.contains("MaskService.isSpecialPotion(state.item)"));
