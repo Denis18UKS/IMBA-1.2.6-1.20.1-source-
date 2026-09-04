@@ -5,9 +5,10 @@ import net.minecraft.util.math.Box;
 /**
  * Collision box used only while the mask owner moves through world geometry.
  *
- * The real entity bounding box stays mask-sized so F3+B, targeting and the
- * seeker-facing block collision remain unchanged. Only the box passed into
- * Minecraft's movement collision solver is narrowed to player-like width.
+ * The visible/targetable entity box remains mask-sized outside Entity.move().
+ * During movement the owner's box is narrowed to vanilla-player dimensions so
+ * every vanilla collision stage sees the same passable shape. After movement
+ * the original visual box is restored at the owner's new position.
  */
 public final class MaskMovementCollision {
     public static final double OWNER_MAX_WIDTH = 0.60D;
@@ -34,5 +35,17 @@ public final class MaskMovementCollision {
         return new Box(
                 centerX - halfX, visualBox.minY, centerZ - halfZ,
                 centerX + halfX, visualBox.minY + height, centerZ + halfZ);
+    }
+
+    public static Box restoreVisualBox(Box originalVisualBox, double x, double y, double z) {
+        if (originalVisualBox == null) return null;
+
+        double oldCenterX = (originalVisualBox.minX + originalVisualBox.maxX) * 0.5D;
+        double oldCenterZ = (originalVisualBox.minZ + originalVisualBox.maxZ) * 0.5D;
+
+        return originalVisualBox.offset(
+                x - oldCenterX,
+                y - originalVisualBox.minY,
+                z - oldCenterZ);
     }
 }
