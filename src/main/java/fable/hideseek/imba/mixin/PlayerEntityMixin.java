@@ -5,6 +5,7 @@ import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.mask.MaskHitbox;
 import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskState;
+import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.ItemEntity;
@@ -19,11 +20,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerEntity.class)
 public abstract class PlayerEntityMixin {
-    /**
-     * Keep the existing mask-specific camera/eye height, but deliberately do
-     * not override getDimensions. The server owner's real physics box must stay
-     * vanilla so world collision never sees the block-sized disguise bounds.
-     */
+    @Inject(method = "getDimensions", at = @At("HEAD"), cancellable = true)
+    private void dimensions(EntityPose pose, CallbackInfoReturnable<EntityDimensions> cir) {
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        if (!MaskState.hasMask(self.getUuid())) return;
+        var state = MaskState.get(self.getUuid());
+        if (usesV22OwnerPhysics(state.type)) return;
+        cir.setReturnValue(MaskHitbox.getDimensions(state.type, state.block, state.item));
+    }
+
+    private static boolean usesV22OwnerPhysics(MaskType type) {
+        return type == MaskType.DOOR
+                || type == MaskType.LADDER_REVERSED
+                || type == MaskType.SCULK_VEIN;
+    }
+
     @Inject(method = "getActiveEyeHeight", at = @At("HEAD"), cancellable = true)
     private void eyeHeight(EntityPose pose, EntityDimensions dimensions, CallbackInfoReturnable<Float> cir) {
         PlayerEntity self = (PlayerEntity) (Object) this;
