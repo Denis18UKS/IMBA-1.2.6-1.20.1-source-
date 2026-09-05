@@ -6,7 +6,7 @@
   "environment":"*",
   "entrypoints":{
     "main":["fable.hideseek.imba.ImbaMod","fable.hideseek.imba.net.WallClimbNetworking","fable.hideseek.imba.ImbaExtension"],
-    "client":["fable.hideseek.imba.ImbaClient","fable.hideseek.imba.client.WallClimbClientNetworking","fable.hideseek.imba.ImbaClientExtension"]
+    "client":["fable.hideseek.imba.ImbaClient","fable.hideseek.imba.net.LobbyReturnClientNetworking","fable.hideseek.imba.client.WallClimbClientNetworking","fable.hideseek.imba.ImbaClientExtension"]
   },
   "mixins":["imba.mixins.json"],
   "depends":{"fabricloader":">=0.15.0","minecraft":"1.20.1","fabric-api":"*"}

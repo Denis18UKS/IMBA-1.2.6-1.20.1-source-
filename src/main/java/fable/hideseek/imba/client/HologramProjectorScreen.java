@@ -20,11 +20,13 @@ public final class HologramProjectorScreen extends Screen {
     private int index;
     private int location;
     private int light = 15;
+    private float contrast = 1.0F;
     private boolean lightingTab;
     private boolean textBackground;
     private TextFieldWidget x, y, z, yaw, scale;
     private ButtonWidget locationPrev, locationButton, locationNext, positionTab, lightingTabButton;
     private ButtonWidget lightMinus, lightValue, lightPlus, lightDark, lightMid, lightBright;
+    private ButtonWidget contrastMinus, contrastValue, contrastPlus, contrastLow, contrastDefault, contrastHigh;
     private ButtonWidget takePosition, takeYaw, deleteButton, textBackgroundButton;
 
     public HologramProjectorScreen() {
@@ -70,6 +72,12 @@ public final class HologramProjectorScreen extends Screen {
         lightDark = addDrawableChild(ButtonWidget.builder(Text.literal("Тёмная: 0"), b -> setLight(0)).dimensions(left, top + 120, 96, 20).build());
         lightMid = addDrawableChild(ButtonWidget.builder(Text.literal("Средняя: 8"), b -> setLight(8)).dimensions(left + 107, top + 120, 96, 20).build());
         lightBright = addDrawableChild(ButtonWidget.builder(Text.literal("Яркая: 15"), b -> setLight(15)).dimensions(left + 214, top + 120, 96, 20).build());
+        contrastMinus = addDrawableChild(ButtonWidget.builder(Text.literal("−"), b -> changeContrast(-0.10F)).dimensions(left, top + 151, 42, 20).build());
+        contrastValue = addDrawableChild(ButtonWidget.builder(contrastText(), b -> changeContrast(0.10F)).dimensions(left + 48, top + 151, 214, 20).build());
+        contrastPlus = addDrawableChild(ButtonWidget.builder(Text.literal("+"), b -> changeContrast(0.10F)).dimensions(left + 268, top + 151, 42, 20).build());
+        contrastLow = addDrawableChild(ButtonWidget.builder(Text.literal("Низкая: 0.5"), b -> setContrast(0.5F)).dimensions(left, top + 181, 96, 20).build());
+        contrastDefault = addDrawableChild(ButtonWidget.builder(Text.literal("Обычная: 1.0"), b -> setContrast(1.0F)).dimensions(left + 107, top + 181, 96, 20).build());
+        contrastHigh = addDrawableChild(ButtonWidget.builder(Text.literal("Высокая: 1.5"), b -> setContrast(1.5F)).dimensions(left + 214, top + 181, 96, 20).build());
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Сохранить"), b -> save()).dimensions(left, top + 232, 150, 20).build());
         deleteButton = addDrawableChild(ButtonWidget.builder(Text.literal("Удалить"), b -> delete()).dimensions(left + 160, top + 232, 150, 20).build());
@@ -111,6 +119,12 @@ public final class HologramProjectorScreen extends Screen {
         lightDark.visible = lightingTab;
         lightMid.visible = lightingTab;
         lightBright.visible = lightingTab;
+        contrastMinus.visible = lightingTab;
+        contrastValue.visible = lightingTab;
+        contrastPlus.visible = lightingTab;
+        contrastLow.visible = lightingTab;
+        contrastDefault.visible = lightingTab;
+        contrastHigh.visible = lightingTab;
     }
 
     private void changeLocation(int delta) {
@@ -135,6 +149,10 @@ public final class HologramProjectorScreen extends Screen {
     private Text lightText() {
         return Text.literal("Яркость: " + light + " / 15");
     }
+
+    private Text contrastText() { return Text.literal("Контраст: " + String.format(Locale.ROOT, "%.1fx", contrast)); }
+    private void changeContrast(float delta) { setContrast(contrast + delta); }
+    private void setContrast(float value) { contrast = Math.max(0.50F, Math.min(2.0F, Math.round(value * 10.0F) / 10.0F)); contrastValue.setMessage(contrastText()); }
 
     private Text textBackgroundText() {
         return Text.literal("Фон под названием: " + (textBackground ? "ВКЛ" : "ВЫКЛ"));
@@ -177,6 +195,7 @@ public final class HologramProjectorScreen extends Screen {
             scale.setText(fmt(p.scale()));
             light = p.light();
             textBackground = p.textBackground();
+            contrast = p.contrast();
         } else {
             var player = MinecraftClient.getInstance().player;
             if (player != null) {
@@ -193,10 +212,12 @@ public final class HologramProjectorScreen extends Screen {
             scale.setText("0.800");
             light = 15;
             textBackground = false;
+            contrast = 1.0F;
         }
         locationButton.setMessage(locationText());
         lightValue.setMessage(lightText());
         textBackgroundButton.setMessage(textBackgroundText());
+        contrastValue.setMessage(contrastText());
         deleteButton.active = index < projectors.size();
     }
 
@@ -223,6 +244,7 @@ public final class HologramProjectorScreen extends Screen {
             buf.writeFloat((float) parse(scale));
             buf.writeByte(light);
             buf.writeBoolean(textBackground);
+            buf.writeFloat(contrast);
             ClientPlayNetworking.send(HologramNetworking.SAVE, buf);
         } catch (NumberFormatException ignored) {
         }
@@ -261,7 +283,7 @@ public final class HologramProjectorScreen extends Screen {
             context.drawTextWithShadow(textRenderer,
                     "15 = максимально светлая фотография без затемнённой entity-подачи", left, top + 153, 0xFFAAAAAA);
             context.drawTextWithShadow(textRenderer,
-                    "Фото двухстороннее и непрозрачное, сквозь него не должны читаться блоки позади.", left, top + 169, 0xFF888888);
+                    "Контраст: 0.5x–2.0x. Фото двухстороннее и непрозрачное.", left, top + 169, 0xFF888888);
         }
         super.render(context, mouseX, mouseY, delta);
     }

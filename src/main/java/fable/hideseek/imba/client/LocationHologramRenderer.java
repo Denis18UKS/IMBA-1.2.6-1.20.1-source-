@@ -44,7 +44,7 @@ public final class LocationHologramRenderer {
                 float size = BASE_SIZE * scale;
                 float half = size / 2.0F;
 
-                Identifier texture = ClientLocationPhotos.hologramTexture(projector.location(), projector.light());
+                Identifier texture = ClientLocationPhotos.hologramTexture(projector.location(), projector.light(), projector.contrast());
                 VertexConsumer photo = ctx.consumers().getBuffer(RenderLayer.getEntityCutoutNoCull(texture));
 
                 // ЕДИНСТВЕННЫЙ draw-call фотографии. NoCull делает этот quad

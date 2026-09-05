@@ -16,7 +16,6 @@
     "LivingEntityDamageMixin",
     "FarmlandBlockMixin",
     "BedBlockMixin",
-    "DoorCollisionMixin",
     "TntEntityMixin",
     "TntMinecartEntityMixin",
     "MaskServiceGuardMixin",
@@ -25,7 +24,10 @@
     "HiderDamageMixin",
     "HideButtonSafetyMixin",
     "OverlayBarrierCollisionMixin",
-    "ServerPlayerMessageFilterMixin"
+    "ServerPlayerMessageFilterMixin",
+    "GameplayFixesMixin",
+    "LobbyReturnMixin",
+    "GameManagerPortalTransitMixin"
   ],
   "client": [
     "client.BlockRenderManagerMaskMixin",
@@ -36,6 +38,7 @@
     "client.PlayerRendererMixin",
     "client.FirstPersonRendererMixin",
     "client.CameraTransitionMixin",
+    "client.GameRendererFixationMixin",
     "client.ClientPlayerEntityMixin",
     "client.ClientPlayerInputMixin",
     "client.ClientEntitySneakMixin",
@@ -44,9 +47,10 @@
     "client.ClientPlayerLadderMixin",
     "client.PlayerEntityClientMixin",
     "client.MaskShadowMixin",
-    "client.ClientDoorCollisionMixin",
     "client.ClientWallClimbingMixin",
-    "client.AdvancementToastMixin"
+    "client.AdvancementToastMixin",
+    "client.PortalMaskAnimationMixin",
+    "client.SpriteContentsUploadAccessor"
   ],
   "injectors": {"defaultRequire": 1}
 }

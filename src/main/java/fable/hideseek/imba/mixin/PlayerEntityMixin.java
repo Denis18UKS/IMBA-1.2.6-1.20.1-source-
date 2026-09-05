@@ -5,6 +5,7 @@ import fable.hideseek.imba.game.GameManager;
 import fable.hideseek.imba.mask.MaskHitbox;
 import fable.hideseek.imba.mask.MaskService;
 import fable.hideseek.imba.mask.MaskState;
+import fable.hideseek.imba.mask.MaskType;
 import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.ItemEntity;
@@ -21,14 +22,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PlayerEntityMixin {
     @Inject(method = "getDimensions", at = @At("HEAD"), cancellable = true)
     private void dimensions(EntityPose pose, CallbackInfoReturnable<EntityDimensions> cir) {
-        PlayerEntity self = (PlayerEntity) (Object) this; if (!MaskState.hasMask(self.getUuid())) return;
-        var state = MaskState.get(self.getUuid()); cir.setReturnValue(MaskHitbox.getDimensions(state.type, state.block, state.item));
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        if (!MaskState.hasMask(self.getUuid())) return;
+        var state = MaskState.get(self.getUuid());
+        if (usesV22OwnerPhysics(state.type)) return;
+        cir.setReturnValue(MaskHitbox.getDimensions(state.type, state.block, state.item));
     }
+
+    private static boolean usesV22OwnerPhysics(MaskType type) {
+        return type == MaskType.DOOR
+                || type == MaskType.LADDER_REVERSED
+                || type == MaskType.SCULK_VEIN;
+    }
+
     @Inject(method = "getActiveEyeHeight", at = @At("HEAD"), cancellable = true)
     private void eyeHeight(EntityPose pose, EntityDimensions dimensions, CallbackInfoReturnable<Float> cir) {
-        PlayerEntity self = (PlayerEntity) (Object) this; if (!MaskState.hasMask(self.getUuid())) return;
-        var state = MaskState.get(self.getUuid()); cir.setReturnValue(MaskHitbox.getEyeHeight(state.type, state.block, state.item));
+        PlayerEntity self = (PlayerEntity) (Object) this;
+        if (!MaskState.hasMask(self.getUuid())) return;
+        var state = MaskState.get(self.getUuid());
+        cir.setReturnValue(MaskHitbox.getEyeHeight(state.type, state.block, state.item));
     }
+
     @Inject(method = "tick", at = @At("HEAD"))
     private void tick(CallbackInfo ci) {
         PlayerEntity self = (PlayerEntity) (Object) this; if (self.getWorld().isClient) return;
@@ -38,14 +52,19 @@ public abstract class PlayerEntityMixin {
         if (state.statue) { self.setVelocity(0,0,0); self.fallDistance=0.0f; self.setNoGravity(true); double dx=Math.abs(self.getX()-state.anchorX),dy=Math.abs(self.getY()-state.anchorY),dz=Math.abs(self.getZ()-state.anchorZ); if(dx>.01||dy>.01||dz>.01)self.setPosition(state.anchorX,state.anchorY,state.anchorZ); }
         else self.setNoGravity(false);
     }
+
     @Inject(method = "travel", at = @At("HEAD"), cancellable = true)
     private void travel(Vec3d movementInput, CallbackInfo ci) { PlayerEntity self=(PlayerEntity)(Object)this; if(MaskState.isStatue(self.getUuid())){self.setVelocity(0,0,0);ci.cancel();} }
+
     @Inject(method = "tickMovement", at = @At("HEAD"), cancellable = true)
     private void tickMovement(CallbackInfo ci) { PlayerEntity self=(PlayerEntity)(Object)this; if(MaskState.isStatue(self.getUuid())){self.setVelocity(0,0,0);ci.cancel();} }
+
     @Inject(method = "jump", at = @At("HEAD"), cancellable = true)
     private void jump(CallbackInfo ci) { PlayerEntity self=(PlayerEntity)(Object)this; if(MaskState.isStatue(self.getUuid())||GameManager.isPrepareLocked(self))ci.cancel(); }
+
     @Inject(method = "dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;", at = @At("HEAD"), cancellable = true)
     private void preventDrop(ItemStack stack, boolean throwRandomly, boolean retainOwnership, CallbackInfoReturnable<ItemEntity> cir) { PlayerEntity player=(PlayerEntity)(Object)this;if(player.isCreative())return;if(ItemRules.isRestricted(stack))cir.cancel(); }
+
     @Inject(method = "dropInventory", at = @At("HEAD"), cancellable = true)
     private void preventDropInventory(CallbackInfo ci) { PlayerEntity player=(PlayerEntity)(Object)this;if(player.isCreative())return;for(int i=0;i<player.getInventory().size();i++)if(ItemRules.isRestricted(player.getInventory().getStack(i))){ci.cancel();return;} }
 }

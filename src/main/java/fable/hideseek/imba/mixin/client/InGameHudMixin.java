@@ -1,22 +1,20 @@
 package fable.hideseek.imba.mixin.client;
 
+import fable.hideseek.imba.client.ClientGameState;
 import fable.hideseek.imba.item.SeekerSwordUtil;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.option.AttackIndicator;
 import net.minecraft.client.option.SimpleOption;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * The vanilla attack-ready marker changes as soon as the crosshair finds the
- * invisible hider entity. Hide only that marker while the seeker sword is held;
- * the normal crosshair and the player's setting remain untouched.
- */
 @Mixin(InGameHud.class)
 public abstract class InGameHudMixin {
-
     @Redirect(
             method = {"renderCrosshair", "renderHotbar"},
             at = @At(
@@ -32,5 +30,18 @@ public abstract class InGameHudMixin {
             return AttackIndicator.OFF;
         }
         return value;
+    }
+
+    @Inject(method = "render", at = @At("TAIL"))
+    private void imba$renderLobbyReturnBlackout(DrawContext context, float tickDelta, CallbackInfo ci) {
+        float alpha = ClientGameState.returnBlackoutAlpha;
+        if (alpha <= 0.001F) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        int a = Math.max(0, Math.min(255, Math.round(alpha * 255.0F)));
+        context.getMatrices().push();
+        // Draw above hotbar/chat GUI depth so a fully opaque blackout has no visible holes.
+        context.getMatrices().translate(0.0F, 0.0F, 1000.0F);
+        context.fill(0, 0, client.getWindow().getScaledWidth(), client.getWindow().getScaledHeight(), a << 24);
+        context.getMatrices().pop();
     }
 }
