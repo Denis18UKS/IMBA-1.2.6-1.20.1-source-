@@ -20,11 +20,12 @@ public abstract class PlayerEntityClientMixin {
     @Inject(method = "getDimensions", at = @At("HEAD"), cancellable = true)
     private void clientDimensions(EntityPose pose, CallbackInfoReturnable<EntityDimensions> cir) {
         PlayerEntity self = (PlayerEntity) (Object) this;
-        PlayerEntity localPlayer = MinecraftClient.getInstance().player;
-        if (self == localPlayer) return;
-
         MaskType type = ClientMaskData.TYPES.get(self.getUuid());
         if (type == null) return;
+
+        PlayerEntity localPlayer = MinecraftClient.getInstance().player;
+        if (self == localPlayer && usesV22OwnerPhysics(type)) return;
+
         Item item = ClientMaskData.ITEMS.get(self.getUuid());
         if(type==MaskType.DOOR){cir.setReturnValue(MaskHitbox.getDimensions(type, item));return;}
         var block=ClientMaskData.BLOCKS.get(self.getUuid());
@@ -37,6 +38,12 @@ public abstract class PlayerEntityClientMixin {
             }
         }
         cir.setReturnValue(MaskHitbox.getDimensions(type,item));
+    }
+
+    private static boolean usesV22OwnerPhysics(MaskType type) {
+        return type == MaskType.DOOR
+                || type == MaskType.LADDER_REVERSED
+                || type == MaskType.SCULK_VEIN;
     }
 
     @Inject(method="getActiveEyeHeight",at=@At("HEAD"),cancellable=true)
