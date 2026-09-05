@@ -146,6 +146,8 @@ public final class HologramLibraryScreen extends Screen {
         buf.writeByte(p.light());
         buf.writeBoolean(p.textBackground());
         buf.writeFloat(p.contrast());
+        buf.writeFloat(p.textScale());
+        buf.writeInt(p.titleBreak());
         ClientPlayNetworking.send(HologramNetworking.SAVE, buf);
     }
 

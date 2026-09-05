@@ -43,10 +43,16 @@ public final class LocalNightScreen extends Screen {
     }
 
     private void change(int delta) {
-        int count = Math.max(1, PanelData.locationCount);
-        if (selected < 0) selected = 0;
-        else selected = Math.floorMod(selected + delta, count);
+        int snow = findSnowVillageStreet();
+        selected = selected == snow ? -1 : snow;
         refresh();
+    }
+
+    private int findSnowVillageStreet() {
+        for (int i = 0; i < PanelData.locationCount; i++) {
+            if (LocalNightClientData.isSnowVillageStreet(PanelData.locationName(i))) return i;
+        }
+        return -1;
     }
 
     private void refresh() {
@@ -71,7 +77,7 @@ public final class LocalNightScreen extends Screen {
         int top = height / 2 - 62;
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, top - 24, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
-                "Ночь видна только в выбранной локации; во всех остальных местах — день.",
+                "Ночь доступна только на «Улице снежной деревни»; везде остальное — день.",
                 width / 2, top - 8, 0xFFBBBBBB);
         super.render(context, mouseX, mouseY, delta);
     }

@@ -43,5 +43,6 @@
   "item.imba.mask_hitbox_tool": "Настройщик хитбоксов неполных маскировок",
   "item.imba.return_timing_tool": "Настройщик задержек возврата",
   "item.imba.portal_animation_tool": "Настройщик зависания player-портала",
-  "item.imba.local_night_tool": "Настройщик локальной ночи"
+  "item.imba.local_night_tool": "Настройщик локальной ночи",
+  "item.imba.hologram_text_tool": "Настройщик текста фото-голограмм"
 }
