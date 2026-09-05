@@ -11,27 +11,41 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.Locale;
+
 public final class LocalNightNetworking {
     public static final Identifier REQUEST = new Identifier("imba", "local_night_request");
     public static final Identifier SAVE = new Identifier("imba", "local_night_save");
     public static final Identifier SYNC = new Identifier("imba", "local_night_sync");
+    private static final String SNOW_VILLAGE_STREET = "Улица снежной деревни";
 
     private LocalNightNetworking() {}
 
     public static void register() {
-        ServerPlayNetworking.registerGlobalReceiver(REQUEST, (server, player, handler, buf, sender) ->
-                server.execute(() -> sendSync(player)));
+        ServerPlayNetworking.registerGlobalReceiver(REQUEST, (server, player, handler, buf, sender) -> server.execute(() -> sendSync(player)));
         ServerPlayNetworking.registerGlobalReceiver(SAVE, (server, player, handler, buf, sender) -> {
             int location = buf.readInt();
             server.execute(() -> {
                 if (!player.hasPermissionLevel(2)) return;
                 if (location < -1 || location >= GameConfig.ROUNDS.size()) return;
+                if (location >= 0 && !isSnowVillageStreet(GameConfig.getLocationName(location))) {
+                    player.sendMessage(Text.literal("§cНочь разрешена только на локации «Улица снежной деревни»"), true);
+                    return;
+                }
                 LocalNightConfig.setSelectedLocation(location);
                 broadcast(server);
                 String name = location < 0 ? "выключена" : GameConfig.getLocationName(location);
                 player.sendMessage(Text.literal("§aЛокальная ночь: §f" + name), true);
             });
         });
+    }
+
+    private static boolean isSnowVillageStreet(String value) {
+        return normalize(value).equals(normalize(SNOW_VILLAGE_STREET));
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replace('ё', 'е').trim().replaceAll("\\s+", " ");
     }
 
     public static void broadcast(MinecraftServer server) {
