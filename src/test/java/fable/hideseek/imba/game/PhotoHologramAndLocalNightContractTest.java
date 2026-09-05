@@ -53,7 +53,6 @@ class PhotoHologramAndLocalNightContractTest {
 
         String extension = read("src/main/java/fable/hideseek/imba/ImbaExtension.java");
         String clientExtension = read("src/main/java/fable/hideseek/imba/ImbaClientExtension.java");
-        String gameManager = read("src/main/java/fable/hideseek/imba/game/GameManager.java");
         String mixins = read("src/main/resources/imba.mixins.json");
         String networking = Files.readString(serverNetPath);
         String clientData = Files.readString(clientDataPath);
@@ -67,7 +66,7 @@ class PhotoHologramAndLocalNightContractTest {
         assertTrue(clientData.contains("nearestLocation"));
         assertTrue(mixin.contains("getTimeOfDay"));
         assertTrue(mixins.contains("client.LocalNightWorldMixin"));
-        assertFalse(gameManager.contains("setTimeOfDay(13000)"));
-        assertFalse(gameManager.contains("setTimeOfDay(1000)"));
+        assertFalse(networking.contains("setTimeOfDay"));
+        assertFalse(clientData.contains("setTimeOfDay"));
     }
 }

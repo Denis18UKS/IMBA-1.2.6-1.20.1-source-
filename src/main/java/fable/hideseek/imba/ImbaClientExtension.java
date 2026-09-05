@@ -24,6 +24,7 @@ public final class ImbaClientExtension implements ClientModInitializer {
         BlockRulesClientNetworking.register();
         RoundRestoreClientNetworking.register();
         HologramClientNetworking.register();
+        LocalNightClientData.registerNetworking();
         PanelSettingsClientNetworking.register();
         MessageSettingsClientNetworking.register();
         OverlayBarrierClientNetworking.register();
@@ -52,7 +53,11 @@ public final class ImbaClientExtension implements ClientModInitializer {
                 return TypedActionResult.success(stack);
             }
             if (stack.isOf(ImbaExtension.HOLOGRAM_PROJECTOR_TOOL)) {
-                client.setScreen(new HologramProjectorScreen());
+                client.setScreen(new HologramLibraryScreen());
+                return TypedActionResult.success(stack);
+            }
+            if (stack.isOf(ImbaExtension.LOCAL_NIGHT_TOOL)) {
+                client.setScreen(new LocalNightScreen());
                 return TypedActionResult.success(stack);
             }
             if (stack.isOf(ImbaExtension.PANEL_SETTINGS_TOOL)) {
