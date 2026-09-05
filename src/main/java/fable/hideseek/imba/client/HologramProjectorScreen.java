@@ -17,6 +17,7 @@ import java.util.Locale;
 
 public final class HologramProjectorScreen extends Screen {
     private List<HologramClientData.Projector> projectors = new ArrayList<>();
+    private int requestedProjectorId;
     private int index;
     private int location;
     private int light = 15;
@@ -30,7 +31,12 @@ public final class HologramProjectorScreen extends Screen {
     private ButtonWidget takePosition, takeYaw, deleteButton, textBackgroundButton;
 
     public HologramProjectorScreen() {
+        this(Integer.MIN_VALUE);
+    }
+
+    public HologramProjectorScreen(int requestedProjectorId) {
         super(Text.literal("Голопроектор локаций"));
+        this.requestedProjectorId = requestedProjectorId;
     }
 
     @Override
@@ -81,10 +87,25 @@ public final class HologramProjectorScreen extends Screen {
 
         addDrawableChild(ButtonWidget.builder(Text.literal("Сохранить"), b -> save()).dimensions(left, top + 232, 150, 20).build());
         deleteButton = addDrawableChild(ButtonWidget.builder(Text.literal("Удалить"), b -> delete()).dimensions(left + 160, top + 232, 150, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.literal("Закрыть"), b -> close()).dimensions(left, top + 258, 310, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Назад в библиотеку"), b ->
+                MinecraftClient.getInstance().setScreen(new HologramLibraryScreen()))
+                .dimensions(left, top + 258, 310, 20).build());
 
         projectors = new ArrayList<>(HologramClientData.snapshot());
-        select(Math.min(index, projectors.size()));
+        if (requestedProjectorId == -1) {
+            select(projectors.size());
+            requestedProjectorId = Integer.MIN_VALUE;
+        } else if (requestedProjectorId >= 0) {
+            int requestedIndex = findProjectorIndex(requestedProjectorId);
+            if (requestedIndex < projectors.size()) {
+                select(requestedIndex);
+                requestedProjectorId = Integer.MIN_VALUE;
+            } else {
+                select(Math.min(index, projectors.size()));
+            }
+        } else {
+            select(Math.min(index, projectors.size()));
+        }
         lightingTab = false;
         refreshTabs();
         ClientPlayNetworking.send(HologramNetworking.REQUEST, PacketByteBufs.empty());
@@ -176,8 +197,16 @@ public final class HologramProjectorScreen extends Screen {
     }
 
     public void applyServerState(List<HologramClientData.Projector> list) {
+        int preservedId = index < projectors.size() ? projectors.get(index).id() : requestedProjectorId;
         projectors = new ArrayList<>(list);
-        select(Math.min(index, projectors.size()));
+        if (preservedId >= 0) select(findProjectorIndex(preservedId));
+        else select(Math.min(index, projectors.size()));
+        requestedProjectorId = Integer.MIN_VALUE;
+    }
+
+    private int findProjectorIndex(int id) {
+        for (int i = 0; i < projectors.size(); i++) if (projectors.get(i).id() == id) return i;
+        return projectors.size();
     }
 
     private void select(int next) {

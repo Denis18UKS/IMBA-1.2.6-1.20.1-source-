@@ -31,6 +31,8 @@ public final class HologramClientNetworking {
                 HologramClientData.set(list);
                 if (client.currentScreen instanceof HologramProjectorScreen screen) {
                     screen.applyServerState(list);
+                } else if (client.currentScreen instanceof HologramLibraryScreen library) {
+                    library.applyServerState(list);
                 }
             });
         });

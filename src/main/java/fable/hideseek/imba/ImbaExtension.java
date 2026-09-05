@@ -34,6 +34,7 @@ public final class ImbaExtension implements ModInitializer {
     public static final Item BLOCK_RESTORE_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item STRUCTURE_LAYER_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item HOLOGRAM_PROJECTOR_TOOL = new Item(new Item.Settings().maxCount(1));
+    public static final Item LOCAL_NIGHT_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item PANEL_SETTINGS_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item AIR_FIXATION_TOOL = new Item(new Item.Settings().maxCount(1));
     public static final Item MESSAGE_SETTINGS_TOOL = new Item(new Item.Settings().maxCount(1));
@@ -48,6 +49,7 @@ public final class ImbaExtension implements ModInitializer {
         Registry.register(Registries.ITEM, new Identifier("imba", "block_restore_tool"), BLOCK_RESTORE_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "structure_layer_tool"), STRUCTURE_LAYER_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "hologram_projector_tool"), HOLOGRAM_PROJECTOR_TOOL);
+        Registry.register(Registries.ITEM, new Identifier("imba", "local_night_tool"), LOCAL_NIGHT_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "panel_settings_tool"), PANEL_SETTINGS_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "air_fixation_tool"), AIR_FIXATION_TOOL);
         Registry.register(Registries.ITEM, new Identifier("imba", "message_settings_tool"), MESSAGE_SETTINGS_TOOL);
@@ -62,6 +64,7 @@ public final class ImbaExtension implements ModInitializer {
             e.add(BLOCK_RESTORE_TOOL);
             e.add(STRUCTURE_LAYER_TOOL);
             e.add(HOLOGRAM_PROJECTOR_TOOL);
+            e.add(LOCAL_NIGHT_TOOL);
             e.add(PANEL_SETTINGS_TOOL);
             e.add(AIR_FIXATION_TOOL);
             e.add(MESSAGE_SETTINGS_TOOL);
@@ -75,6 +78,7 @@ public final class ImbaExtension implements ModInitializer {
         BreakRulesConfig.load();
         RoundRestoreConfig.load();
         HologramConfig.load();
+        LocalNightConfig.load();
         PanelSettingsConfig.load();
         MessageSettingsConfig.load();
         OverlayBarrierConfig.load();
@@ -86,6 +90,7 @@ public final class ImbaExtension implements ModInitializer {
         BlockRulesNetworking.register();
         RoundRestoreNetworking.register();
         HologramNetworking.register();
+        LocalNightNetworking.register();
         PanelSettingsNetworking.register();
         MessageSettingsNetworking.register();
         MaskHitboxNetworking.register();
@@ -101,6 +106,7 @@ public final class ImbaExtension implements ModInitializer {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             HologramNetworking.sendSync(handler.getPlayer());
+            LocalNightNetworking.sendSync(handler.getPlayer());
             PanelSettingsNetworking.sendSync(handler.getPlayer());
             MessageSettingsNetworking.sendSync(handler.getPlayer());
             OverlayBarrierNetworking.sendSync(handler.getPlayer());
