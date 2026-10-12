@@ -274,6 +274,10 @@ public final class HologramProjectorScreen extends Screen {
             buf.writeByte(light);
             buf.writeBoolean(textBackground);
             buf.writeFloat(contrast);
+            float currentTextScale = index < projectors.size() ? projectors.get(index).textScale() : 1.0F;
+            int currentTitleBreak = index < projectors.size() ? projectors.get(index).titleBreak() : 0;
+            buf.writeFloat(currentTextScale);
+            buf.writeInt(currentTitleBreak);
             ClientPlayNetworking.send(HologramNetworking.SAVE, buf);
         } catch (NumberFormatException ignored) {
         }

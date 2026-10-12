@@ -15,17 +15,10 @@ public final class HologramClientNetworking {
             List<HologramClientData.Projector> list = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 list.add(new HologramClientData.Projector(
-                        buf.readInt(),
-                        buf.readVarInt(),
-                        buf.readString(128),
-                        buf.readDouble(),
-                        buf.readDouble(),
-                        buf.readDouble(),
-                        buf.readFloat(),
-                        buf.readFloat(),
-                        buf.readByte(),
-                        buf.readBoolean(),
-                        buf.readFloat()));
+                        buf.readInt(), buf.readVarInt(), buf.readString(128),
+                        buf.readDouble(), buf.readDouble(), buf.readDouble(),
+                        buf.readFloat(), buf.readFloat(), buf.readByte(), buf.readBoolean(), buf.readFloat(),
+                        buf.readFloat(), buf.readInt()));
             }
             client.execute(() -> {
                 HologramClientData.set(list);
@@ -33,6 +26,10 @@ public final class HologramClientNetworking {
                     screen.applyServerState(list);
                 } else if (client.currentScreen instanceof HologramLibraryScreen library) {
                     library.applyServerState(list);
+                } else if (client.currentScreen instanceof HologramTextLibraryScreen textLibrary) {
+                    textLibrary.applyServerState(list);
+                } else if (client.currentScreen instanceof HologramTextSettingsScreen textSettings) {
+                    textSettings.applyServerState(list);
                 }
             });
         });

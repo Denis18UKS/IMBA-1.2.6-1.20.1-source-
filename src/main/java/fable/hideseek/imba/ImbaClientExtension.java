@@ -56,6 +56,10 @@ public final class ImbaClientExtension implements ClientModInitializer {
                 client.setScreen(new HologramLibraryScreen());
                 return TypedActionResult.success(stack);
             }
+            if (stack.isOf(ImbaExtension.HOLOGRAM_TEXT_TOOL)) {
+                client.setScreen(new HologramTextLibraryScreen());
+                return TypedActionResult.success(stack);
+            }
             if (stack.isOf(ImbaExtension.LOCAL_NIGHT_TOOL)) {
                 client.setScreen(new LocalNightScreen());
                 return TypedActionResult.success(stack);
