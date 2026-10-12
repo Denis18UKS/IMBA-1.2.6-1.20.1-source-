@@ -50,7 +50,10 @@
     "client.ClientWallClimbingMixin",
     "client.AdvancementToastMixin",
     "client.PortalMaskAnimationMixin",
-    "client.SpriteContentsUploadAccessor"
+    "client.SpriteContentsUploadAccessor",
+    "client.LocalNightWorldMixin"
   ],
-  "injectors": {"defaultRequire": 1}
+  "injectors": {
+    "defaultRequire": 1
+  }
 }
